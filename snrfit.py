@@ -278,6 +278,7 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     # Create the axis object.
     ax = plt.subplot(projection=wcs.celestial, slices=('x','y'))
     
+    extend='neither'
     if vmax != None:
         extend = 'max'
     else:
