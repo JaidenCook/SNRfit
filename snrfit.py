@@ -624,7 +624,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
     return popt,perr
 
 # // This function needs to be refactored. 
-def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,single=False):
+def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D function
     using scipy.optimise.curve_fit(), which uses a non-linear least squares method.
@@ -645,8 +645,6 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,single=False):
         Contains the major and minor axis of the SNR in arcminutes.
     maj_frac : float
         Fractional size limit of fit Gaussians, as a fraction of the Major axis. Defualt = 0.125.
-    single : boolean
-        Fit one Gaussian with (major,minor) axis size. Defualt value is False.
             
     Returns:
     ----------
@@ -661,104 +659,73 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,single=False):
     minor = constants[1]
     dx = constants[2] #pixel size in degrees [deg]
 
-    if single:
-        # Fitting a single Gaussian case.
+    
+    # Restoring beam parameters. Used in the guess.
+    pixel_scale = dx*3600 # [arcsec] 
+    a_psf = constants[3]*3600 # [arcsec]
+    b_psf = constants[4]*3600 # [arsec]
+    PA_psf = np.abs(np.radians(constants[5])) # [rads]
 
-        # Restoring beam parameters. Used in the guess.
-        pixel_scale = dx*60 # [arcsec] 
-        PA = 0
+    # Restoring beam sizes in pixels:
+    sig_x_psf = (a_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
+    sig_y_psf = (b_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
 
-        # Tiny offset so fitting works. 
-        epsilon = 1e-5
+    print(sig_x_psf,sig_y_psf)
 
-        # Restoring beam sizes in pixels:
-        sig_x = (0.5*major/pixel_scale)/(2*np.sqrt(2*np.log(2)))
-        sig_y = (0.5*minor/pixel_scale)/(2*np.sqrt(2*np.log(2)))
+    # PSF initial parameters. Used to determine pguess.
+    p0 = np.array([1,0,0,sig_x_psf,sig_y_psf,PA_psf])# Template inital parameter array.
 
-        # Getting the position.
-        x_cent = coordinates[1]
-        y_cent = coordinates[0]
+    # Parameter array dimensions.
+    N_gauss = len(coordinates)
+    N_params = len(p0)
 
-        # PSF initial parameters. Used to determine pguess.
-        pguess = np.array([1,x_cent,y_cent,sig_x,sig_y,PA])# Template inital parameter array.
+    # The guess parameter array.
+    pguess = np.ones((N_gauss,N_params))*p0[None,:]
 
-        # Specifying the lower fit bounds for each Gaussian.
-        pbound_low = np.array([0.0,x_cent,y_cent,sig_x,sig_y,0.0]) # Template 1D array.
-        pbound_low[1:-1] = pbound_low[1:-1] - epsilon
-        pbound_up = np.array([np.inf,x_cent,y_cent,sig_x,sig_y,np.pi])
-        pbound_up[1:-1] = pbound_up[1:-1] + epsilon
+    Max_major = (maj_frac*major/60)/dx # [pix]
 
-        # Fitting the Gaussian.
-        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+    # Defining the min and max peak x location limits.
+    x_low = np.nanmin(xx)
+    x_hi = np.nanmax(xx)
 
-    else:
-        # Restoring beam parameters. Used in the guess.
-        pixel_scale = dx*3600 # [arcsec] 
-        a_psf = constants[3]*3600 # [arcsec]
-        b_psf = constants[4]*3600 # [arsec]
-        PA_psf = np.abs(np.radians(constants[5])) # [rads]
+    # Defining the min and max peak y location limits.
+    y_low = np.nanmin(yy)
+    y_hi = np.nanmax(yy)
 
-        # Restoring beam sizes in pixels:
-        sig_x_psf = (a_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
-        sig_y_psf = (b_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
+    # Assigning initial positions.
+    pguess[:,1] = coordinates[:,1]
+    pguess[:,2] = coordinates[:,0]
 
-        print(sig_x_psf,sig_y_psf)
-
-        # PSF initial parameters. Used to determine pguess.
-        p0 = np.array([1,0,0,sig_x_psf,sig_y_psf,PA_psf])# Template inital parameter array.
-
-        # Parameter array dimensions.
-        N_gauss = len(coordinates)
-        N_params = len(p0)
-
-        # The guess parameter array.
-        pguess = np.ones((N_gauss,N_params))*p0[None,:]
-
-        Max_major = (maj_frac*major/60)/dx # [pix]
-
-        # Defining the min and max peak x location limits.
-        x_low = np.nanmin(xx)
-        x_hi = np.nanmax(xx)
-
-        # Defining the min and max peak y location limits.
-        y_low = np.nanmin(yy)
-        y_hi = np.nanmax(yy)
-
-        # Assigning initial positions.
-        pguess[:,1] = coordinates[:,1]
-        pguess[:,2] = coordinates[:,0]
-
+    
+    if coordinates.shape[1] > 2:
+        # The blob fitting method returns an expected sigma for a given peak.
+        # We can use this as a guess of the actual sigma.
         
-        if coordinates.shape[1] > 2:
-            # The blob fitting method returns an expected sigma for a given peak.
-            # We can use this as a guess of the actual sigma.
-            
-            if coordinates.shape[1] > 3:
-                # peak intensity guess for the Gaussians.
+        if coordinates.shape[1] > 3:
+            # peak intensity guess for the Gaussians.
 
-                # Set values less than 0 to be 1.
-                coordinates[:,3][coordinates[:,3] < 0] = 0
-                pguess[:,0] = coordinates[:,3]
-            else:
-                pass
-            pguess[:,3][coordinates[:,2] > sig_x_psf] = coordinates[:,2][coordinates[:,2] > sig_x_psf]
-            pguess[:,4][coordinates[:,2] > sig_y_psf] = coordinates[:,2][coordinates[:,2] > sig_y_psf]
+            # Set values less than 0 to be 1.
+            coordinates[:,3][coordinates[:,3] < 0] = 0
+            pguess[:,0] = coordinates[:,3]
+        else:
+            pass
+        pguess[:,3][coordinates[:,2] > sig_x_psf] = coordinates[:,2][coordinates[:,2] > sig_x_psf]
+        pguess[:,4][coordinates[:,2] > sig_y_psf] = coordinates[:,2][coordinates[:,2] > sig_y_psf]
 
-        # Specifying the lower fit bounds for each Gaussian.
-        pbound_low = np.array([0.0,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
-        #pbound_low = np.array([-np.inf,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
-        #print(pbound_low)
-        pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] # Expanding for each Gaussian component.
+    # Specifying the lower fit bounds for each Gaussian.
+    pbound_low = np.array([0.0,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
+    #pbound_low = np.array([-np.inf,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
+    #print(pbound_low)
+    pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] # Expanding for each Gaussian component.
 
-        pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
-        #print(pbound_up)
-        #pbound_up = np.array([np.sum(data),x_hi,y_hi,Max_major,Max_major,np.pi])
-        pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
+    pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
+    #print(pbound_up)
+    #pbound_up = np.array([np.sum(data),x_hi,y_hi,Max_major,Max_major,np.pi])
+    pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
-        # Getting the fit parameters, and their errors.
-        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+    # Getting the fit parameters, and their errors.
+    popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
+            func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
 
     return popt,perr
 
