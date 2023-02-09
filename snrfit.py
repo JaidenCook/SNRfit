@@ -246,16 +246,6 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     ----------
     None
     """
-
-    if vmax:
-        vmax=vmax
-    else:
-        vmax = None
-
-    if vmin != None:
-        vmin=vmin
-    else:
-        vmin = None
     
     # If array issues, use wcs.celestial
     if lognorm:
@@ -264,7 +254,6 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     else:
         norm=None
 
-    
     if scale != 1:
         # If scale is not default, rescale the figure size.
         (figx,figy) = figsize
@@ -291,7 +280,6 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     
     if vmax != None and vmin != None:
         extend = 'both'
-
 
     if abs_cond:
         im = ax.imshow(np.abs(image), origin='lower', cmap=cmap,norm=norm, 
