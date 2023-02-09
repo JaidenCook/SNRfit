@@ -112,7 +112,7 @@ def great_circle_dist(lat1,lat2,lon1,lon2,degrees=False):
 
 ## Plotting functions.
 def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
-                scale=1):
+                scale=1,dpi=70):
     """
     Plots the data image, the model image and the residual image for comparison.
     
@@ -140,15 +140,21 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
     None
     """
 
-    if vmax != None:
-        vmax=vmax
+    # Adds limits to the colourbar. Default is none.
+    # Limits only added if the user inputs their own limits.
+    extend='neither'
+    if (vmax != None) and (vmin != None):
+        extend = 'both'
     else:
-        vmax = np.nanmax(img_nu)*0.6
+        if vmax != None:
+            extend = 'max'
+        else:
+            vmax = np.nanmax(img_nu)*0.6
 
-    if vmin != None:
-        vmin=vmin
-    else:
-        vmin = np.nanmin(img_nu)
+        if vmin != None:
+            extend = 'min'
+        else:
+            vmin = np.nanmin(img_nu)        
 
     # Creating figure object.
     fig = plt.figure(figsize=(scale*15, scale*4))
@@ -180,9 +186,9 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
     ax3.set_title('Residuals')
 
     # Adding colourbars, no label added, but that can be fixed.
-    cb1 = fig.colorbar(im1, ax=ax1, pad =0.002)
-    cb2 = fig.colorbar(im2, ax=ax2, pad =0.002)
-    cb3 = fig.colorbar(im3, ax=ax3, pad =0.002)
+    cb1 = fig.colorbar(im1, ax=ax1, pad =0.002, extend=extend)
+    cb2 = fig.colorbar(im2, ax=ax2, pad =0.002, extend=extend)
+    cb3 = fig.colorbar(im3, ax=ax3, pad =0.002, extend=extend)
 
     # Adding labels to the x and y-axis. 
     ax1.set_xlabel(r'RAJ2000',fontsize=14)
@@ -199,8 +205,8 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
     fig.tight_layout()
 
     if filename:
-        #plt.savefig('{0}.png'.format(filename),overwrite=True)
-        plt.savefig('{0}.png'.format(filename))
+        plt.savefig('{0}.png'.format(filename),dpi=dpi,
+            overwrite=True,bbox_inches='tight')
     else:
         plt.show()
 
@@ -267,6 +273,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     # Create the axis object.
     ax = plt.subplot(projection=wcs.celestial, slices=('x','y'))
     
+    # Adds limits to the colourbar. Default is none.
+    # Limits only added if the user inputs their own limits.
     extend='neither'
     if vmax != None:
         extend = 'max'
@@ -309,7 +317,7 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     plt.grid()
 
     if filename:
-        plt.savefig('{0}.png'.format(filename),overwrite=True)
+        plt.savefig('{0}.png'.format(filename),overwrite=True,bbox_inches='tight')
         #plt.savefig('{0}.png'.format(filename))
     else:
         plt.show()
@@ -400,7 +408,7 @@ def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=4
     plt.legend(fontsize=18*scale)
 
     if filename:
-        plt.savefig(filename)
+        plt.savefig(filename,overwrite=True,bbox_inches='tight')
     else:
         plt.show()
     plt.close()
