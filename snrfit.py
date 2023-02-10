@@ -7,6 +7,7 @@ Make this a package.
 Upgrade the background esimtation method.
 Improve the boundary conditions.
 Implement Gaussian deconvolution.
+Sam is a silly goose.
 """
 
 __author__ = "Jaiden Cook"
