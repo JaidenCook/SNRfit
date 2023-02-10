@@ -205,8 +205,9 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
     fig.tight_layout()
 
     if filename:
-        plt.savefig('{0}.png'.format(filename),dpi=dpi,
-            overwrite=True,bbox_inches='tight')
+        #plt.savefig('{0}.png'.format(filename),dpi=dpi,
+        #    overwrite=True,bbox_inches='tight')
+        plt.savefig('{0}.png'.format(filename),dpi=dpi,bbox_inches='tight')
     else:
         plt.show()
 
@@ -317,8 +318,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     plt.grid()
 
     if filename:
-        plt.savefig('{0}.png'.format(filename),overwrite=True,bbox_inches='tight')
-        #plt.savefig('{0}.png'.format(filename))
+        #plt.savefig('{0}.png'.format(filename),overwrite=True,bbox_inches='tight')
+        plt.savefig('{0}.png'.format(filename),bbox_inches='tight')
     else:
         plt.show()
     plt.close()
@@ -408,7 +409,8 @@ def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=4
     plt.legend(fontsize=18*scale)
 
     if filename:
-        plt.savefig(filename,overwrite=True,bbox_inches='tight')
+        #plt.savefig(filename,overwrite=True,bbox_inches='tight')
+        plt.savefig(filename,bbox_inches='tight')
     else:
         plt.show()
     plt.close()
