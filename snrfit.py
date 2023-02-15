@@ -956,7 +956,7 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         Expected image root mean squared.
     """
     # Output image gets altered otherwise.
-    #image = np.ones(image.shape)*image
+    image = np.ones(image.shape)*image
 
     if np.any(mask_arr):
         # If mask is provided.
