@@ -213,6 +213,166 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
 
     plt.close()
 
+def array_plot(img_list,wcs_list,scale=1,filename=None):
+    """
+    Makes Nx3 plots. Images should be ordered appropriately. N is the number
+    of rows. WCS coordinate should be the same for each image in a row. 
+    In future will generalise plot. 
+
+    Parameters:
+    ----------
+    img_list : list, numpy array
+        List containing images. Each image is a 2D numpy array. Image list
+        should be order from last 3 image set to first 3 image set.
+    wcs_list : list, astropy object 
+        Single wcs coordinate, or list of wcs coordinates. List length
+        should match the number of rows. wcs ordering should match the image
+        set.
+    filename : str, default=None
+        If not None, write png with provided filename.
+    scale : float, default=1
+        Scale size of the figure.
+            
+    Returns:
+    ----------
+    None
+    """
+
+    # Grid is populated from bottom to top, sort list so it is ordered
+    # properly.
+    figx = 12
+    figy = 4
+    fontsize=22
+    labelsize=20
+
+    # Number of images in the image list.
+    Nimags = len(img_list)
+
+    # Number of columns.
+    Ncols = 3
+
+    # Defining the width of each figure.
+    epsilonx = 0.02
+    epsilony = 0.055
+
+    # Checking that the number of images is divisible by 3. If not then raise
+    # a ValueError. Image grid should be Nx3. Might generalise this in future.
+    if (Nimags % Ncols) != 0.:
+        raise ValueError('Number of images should be divisible by 3.')
+    else:
+        Nrows = int(Nimags/Ncols)
+    
+    # If the input wcs list doesn't match the image number then raise a ValueError.
+    # If the input wcs list is not a list then ignore this. All images might share
+    # the same wcs. 
+    if type(wcs_list) == list:
+        if (len(wcs_list) % Nrows) != 0:
+            err_str = (f"Number of wcs coordinate systems {len(wcs_list)}"\
+                f", doesn't match the image array number {Nrows}.")
+            raise ValueError(err_str)
+    
+    # In the case that all images share the same wcs, create a list
+    # with the same number of elements as Nimags, but with each element
+    # being the input wcs.
+    wcs_identical_cond = False
+    if type(wcs_list) != list:
+        wcs_list = [wcs_list for i in range(Nrows)]
+        wcs_identical_cond = True
+        # Defining the width of each figure.
+        figx = 13
+        epsilonx = 0.02
+        epsilony = 0.02
+
+    # Adds limits to the colourbar. Default is none.
+    # Limits only added if the user inputs their own limits.
+    extend='max'    
+    vmax_list = []
+    vmin_list = []
+    for i in range(Nrows):
+        max_temp = np.max(np.array([np.nanmax(img_list[i*Ncols+0]),
+                np.nanmax(img_list[i*Ncols+1]),np.nanmax(img_list[i*Ncols+2])]))
+
+        vmax_list.append(max_temp*0.8)
+
+        min_temp = np.min(np.array([np.nanmin(img_list[i*Ncols+0]),
+                np.nanmin(img_list[i*Ncols+1]),np.nanmin(img_list[i*Ncols+2])]))
+
+        vmin_list.append(min_temp)
+
+
+    # Creating figure object.
+    fig = plt.figure(figsize=(scale*figx, scale*figy*Nrows))
+
+    dx = 1/Ncols
+    dy = 1/Nrows
+    # Sub image widths.
+    width = 1/Ncols - epsilonx
+    # Sub image heights.
+    height = 1/Nrows - epsilony
+
+    counter = 0
+    for i in range(Nrows):
+        for j in range(Ncols):
+
+            # Getting the wcs coord system.
+            wcs = wcs_list[i]
+            img = img_list[counter]
+            vmin = vmin_list[i]
+            vmax = vmax_list[i]
+
+            # x and y positions of the bottom left corner of axes in the figure.
+            xpos = j*dx
+            ypos = i*dy
+
+            # Setting the temp axis dimensions. 
+            axes_dimensions = [xpos,ypos,width,height]
+            
+            # Adding axes objects to the figure. 
+            axs_temp = fig.add_axes(axes_dimensions,projection=wcs.celestial, 
+                    slices=('x','y'))
+
+            if j==0:
+                axs_temp.set_ylabel(r'DEJ2000',fontsize=fontsize*scale)
+            else:
+                # sharey isn't working, so set the y-lables to be false.
+                axs_temp.tick_params('y',labeltop=False)
+
+            # If using the same wcs for each image, set all axes to false,
+            # except for the bottom row.
+            if i != 0 and wcs_identical_cond:
+                axs_temp.tick_params('x',labeltop=False)
+            else:
+                pass
+
+            if i == 0:
+                axs_temp.set_xlabel(r'RAJ2000',fontsize=fontsize*scale)
+            else:
+                axs_temp.set_xlabel(' ',fontsize=fontsize*scale)
+
+            axs_temp.tick_params(axis='both', color = 'k', which='major', labelsize=labelsize*scale)
+
+            im_temp = axs_temp.imshow(img, cmap='cividis', vmin=vmin, vmax=vmax, aspect='auto')
+
+            cb_temp = fig.colorbar(im_temp, ax=axs_temp, pad =0.002, extend=extend)        
+            cb_temp.ax.tick_params(labelsize=labelsize*scale)
+
+            if j == (Ncols-1):
+                cb_temp.set_label(r'Intensity $\rm{[Jy/Beam]}$',fontsize=fontsize*scale)
+            else:
+                cb_temp.ax.tick_params(labelright=False)
+                
+
+            counter += 1
+
+    fig.tight_layout()
+
+    if filename:
+        plt.savefig('{0}.png'.format(filename),bbox_inches='tight')
+    else:
+        plt.show()
+    
+    plt.close()
+
 def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=False, 
                     clab=None, vmin=None, vmax=None, filename=None, cmap='cividis',
                     scale=1,abs_cond=False):
