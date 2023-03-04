@@ -658,6 +658,67 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
     else:
         return zz
 
+def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=False):
+    """
+    Calculates a constant background and rms for an input image. Can accept input mask
+    images.
+    
+    Parameters:
+    ----------
+    img : (array)
+        Numpy array containing the image.
+            
+    Returns:
+    ----------
+    bkg : float
+        Expected background value.
+    rms : float
+        Expected image root mean squared.
+    """
+    # Output image gets altered otherwise.
+    image = np.ones(image.shape)*image
+
+    if np.any(mask_arr):
+        # If mask is provided.
+        image[mask_arr==False] = np.NaN
+
+    bkg = np.nanmedian(image)
+    rms = np.nanstd(image)
+
+    #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
+
+    for i in range(Niter):
+
+        # Calculating the threshold mask.
+        threshold = bkg + sigma_thresh*rms
+        #print('threshold = %5.3f' % threshold)
+        
+        #thresh_mask = np.abs(image) > threshold
+        thresh_mask = image > threshold
+
+        # Subsetting the data.
+        image[thresh_mask] = np.NaN
+        
+        #temp_data = image[mask_arr==False][thresh_mask]
+
+        # Recalculate the bkg and rms:
+        bkg = np.nanmedian(image)
+        rms = np.nanstd(image)
+
+        #print('Max pixel = %5.3f' % (np.nanmax(image)))
+        #plt.imshow(image)
+        #plt.show()
+
+        #bkg_vec.append(bkg)
+        #rms_vec.append(rms)
+
+        #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
+
+    if mask_cond:
+        return bkg,rms,thresh_mask
+    else:
+        return bkg,rms
+
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
             thresh_fac=1,overlap=1,log_cond=False):
     """
@@ -1098,66 +1159,6 @@ def write_model_table(popt,perr,constants,alpha,SNR_ID,w,outname=None):
 
     return t
 
-def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=False):
-    """
-    Calculates a constant background and rms for an input image. Can accept input mask
-    images.
-    
-    Parameters:
-    ----------
-    img : (array)
-        Numpy array containing the image.
-            
-    Returns:
-    ----------
-    bkg : float
-        Expected background value.
-    rms : float
-        Expected image root mean squared.
-    """
-    # Output image gets altered otherwise.
-    image = np.ones(image.shape)*image
-
-    if np.any(mask_arr):
-        # If mask is provided.
-        image[mask_arr==False] = np.NaN
-
-    bkg = np.nanmedian(image)
-    rms = np.nanstd(image)
-
-    #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
-
-    for i in range(Niter):
-
-        # Calculating the threshold mask.
-        threshold = bkg + sigma_thresh*rms
-        #print('threshold = %5.3f' % threshold)
-        
-        #thresh_mask = np.abs(image) > threshold
-        thresh_mask = image > threshold
-
-        # Subsetting the data.
-        image[thresh_mask] = np.NaN
-        
-        #temp_data = image[mask_arr==False][thresh_mask]
-
-        # Recalculate the bkg and rms:
-        bkg = np.nanmedian(image)
-        rms = np.nanstd(image)
-
-        #print('Max pixel = %5.3f' % (np.nanmax(image)))
-        #plt.imshow(image)
-        #plt.show()
-
-        #bkg_vec.append(bkg)
-        #rms_vec.append(rms)
-
-        #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
-
-    if mask_cond:
-        return bkg,rms,thresh_mask
-    else:
-        return bkg,rms
 
 def convolve_image(image,header,Gauss_size):
     """
