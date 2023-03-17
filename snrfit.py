@@ -718,7 +718,7 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
     else:
         return bkg,rms
 
-def spatially_correlated_noise(std,psf_params,img_dims,
+def generate_correlated_noise(std,psf_params,img_dims,
                                verbose=False,threshold=1e-1,w=None):
     """
     For a given input standard deviation (calculated from some image noise),
