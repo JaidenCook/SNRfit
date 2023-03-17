@@ -709,7 +709,7 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         print(f'Max pixel = {np.nanmax(image):5.4f}')
         
         if i == (Niter-1) and plot_cond:
-            plt.imshow(image)
+            plt.imshow(image,origin='lower')
             plt.show()
 
     if mask_cond:
@@ -717,6 +717,101 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         return bkg,rms,thresh_mask
     else:
         return bkg,rms
+
+def spatially_correlated_noise(std,psf_params,img_dims,
+                               verbose=False,threshold=1e-1,w=None):
+    """
+    For a given input standard deviation (calculated from some image noise),
+    input image psf parameters, and image dimensions, generate spatially correlated
+    noise.
+
+    The psf here is assumed to be Gaussian, therefore noise is correlated on spatial
+    scales related to the Gaussian size. This is an accurate first order approximation
+    of interferometric noise.
+
+    Parameters:
+    ----------
+    std : float
+        Standard deviation of image noise.
+    psf_params : list
+        List of psf major, minor and position angle. Major and minor axes should be
+        units of pixels.
+    img_dims : tuple
+        Tuple containing the image X and Y axis pixel sizes. 
+    verbose : bool, default=False
+        If True prints extra information. 
+    w : astropy object, default=None
+        Astropy world coordinate system, if given this function plots the 
+        uncorrelated noise and the psf.
+    """
+    from scipy.signal import convolve2d
+
+    # Getting the indices of the coordinate grid. 
+    # Numpy grid ordering is different to the ordering I specify.
+    # There is an option to change this.
+    yy_pix,xx_pix = np.indices(img_dims)
+
+    # Defining the centre of the coordinate grid. 
+    x_cent = int(img_dims[0]/2)
+    y_cent = int(img_dims[1]/2)
+
+    # Creating the coordinate grid. 
+    yy_pix = yy_pix - y_cent
+    xx_pix = xx_pix - x_cent
+
+    # Creating the PSF function.
+    a_psf,b_psf,theta_psf = psf_params
+
+    sigx_psf = a_psf/(2*np.sqrt(2*np.log(2))) 
+    sigy_psf = b_psf/(2*np.sqrt(2*np.log(2))) 
+
+    ppsf = np.array([1,0,0,sigx_psf,sigy_psf,theta_psf])
+
+    # Generating the image. 
+    img_psf = NGaussian2D((xx_pix,yy_pix),ppsf,fit=False).reshape(img_dims[0],img_dims[1])
+
+    if np.any(w):
+        print('Plotting psf image...')
+        astro_plot_2D(img_psf, w, figsize=(7.5,6),scale=0.6)
+
+    # Generating the uncorrelated noise.
+    # The uncorrelated noise needs to be scaled by the area of the PSF beam.
+    # We assume the mean is zero, the background can be added to the output image later. 
+    img_noise = np.random.normal(0,scale=std,size=img_dims)
+
+    if np.any(w):
+        print('Plotting uncorrelated noise image...')
+        astro_plot_2D(img_noise, w, figsize=(7.5,6),scale=0.6)
+
+    # Calculating the scaling factor. 
+    w_a = (a_psf)/np.sqrt(2*np.log(2))
+    w_b = (b_psf)/np.sqrt(2*np.log(2))
+
+    rescale = np.sqrt(np.pi*w_a*w_b)
+
+    # Normalising the PSF.
+    img_psf = img_psf/np.sum(img_psf)
+
+    # Calculating the rescaled image. 
+    img_scaled = img_noise*rescale
+
+    # Convoling the psf with the noise.
+    img_correlated_noise = convolve2d(img_psf,img_scaled,mode='same',boundary='wrap')
+
+    std_cor = np.nanstd(img_correlated_noise)
+
+    # Error checking. The standard deviations should be similar.
+    std_diff = np.abs(std_cor - std)
+    if std_diff > threshold:
+        err_msg = f'Difference standard deviation above threshold {std_diff:5.3e}'
+        raise ValueError(err_msg)
+    
+    if verbose:
+        print(f'Rescaling factor = {rescale:5.3f}')
+        print(f'Input standard deviation is {std:5.3f}')
+        print(f'Correlated standard deviation is {std_cor:5.3f}')
+    
+    return img_correlated_noise
 
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
             thresh_fac=1,overlap=1,log_cond=False):
