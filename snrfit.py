@@ -658,7 +658,8 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
     else:
         return zz
 
-def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=False):
+def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=False,
+                     plot_cond=False):
     """
     Calculates a constant background and rms for an input image. Can accept input mask
     images.
@@ -705,16 +706,14 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         bkg = np.nanmedian(image)
         rms = np.nanstd(image)
 
-        #print('Max pixel = %5.3f' % (np.nanmax(image)))
-        #plt.imshow(image)
-        #plt.show()
-
-        #bkg_vec.append(bkg)
-        #rms_vec.append(rms)
-
-        #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
+        print(f'Max pixel = {np.nanmax(image):5.4f}')
+        
+        if i == (Niter-1) and plot_cond:
+            plt.imshow(image)
+            plt.show()
 
     if mask_cond:
+        thresh_mask = np.isnan(image)
         return bkg,rms,thresh_mask
     else:
         return bkg,rms
