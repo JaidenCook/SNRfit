@@ -662,15 +662,29 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
         return zz
 
 def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=False,
-                     plot_cond=False):
+                     plot_cond=False,abscond=False):
     """
     Calculates a constant background and rms for an input image. Can accept input mask
     images.
     
     Parameters:
     ----------
-    img : (array)
+    image : (array)
         Numpy array containing the image.
+    mask_arr : numpy array, default=None
+        Numpy array containing masked regions.
+    Niter : int, default = 5
+        Number of sigma thresholding iterations.
+    sigma_thresh : float, default=2.5
+        Sigma threshold statistic.
+    mask_cond : bool, default=False
+        If True return the sigma clipped mask.
+    plot_cond : bool, default=False
+        If True plot the image with the mask overlaid.
+    abscond : bool, default=False
+        If True the threshold is on both negative and positive values.
+        Default False only thresholds positive values.
+
             
     Returns:
     ----------
@@ -697,8 +711,10 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         threshold = bkg + sigma_thresh*rms
         #print('threshold = %5.3f' % threshold)
         
-        #thresh_mask = np.abs(image) > threshold
-        thresh_mask = image > threshold
+        if abscond:
+            thresh_mask = np.abs(image) > threshold
+        else:
+            thresh_mask = image > threshold
 
         # Subsetting the data.
         image[thresh_mask] = np.NaN
