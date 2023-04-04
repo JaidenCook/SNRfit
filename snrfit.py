@@ -375,7 +375,7 @@ def array_plot(img_list,wcs_list,scale=1,filename=None):
 
 def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=False, 
                     clab=None, vmin=None, vmax=None, filename=None, cmap='cividis',
-                    scale=1,abs_cond=False):
+                    scale=1,point_area=1,abs_cond=False):
     """
     2D Astro image plotter. Takes an input image array and world coordinate system
     and plots the image. 
@@ -406,6 +406,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         Colourmap colour scheme.
     scale : float, default=1
         Figure size scale.
+    point_area : float, default=1
+        Area of the scatter point pixel.
     abs_cond : bool, default=False
         Condition for plotting the absolute values.
             
@@ -466,7 +468,7 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     
     if np.any(scatter_points):
         # Plot peak detection peaks if coordinates provided.
-        ax.scatter(scatter_points[:,1],scatter_points[:,0],color='r')
+        ax.scatter(scatter_points[:,1],scatter_points[:,0],color='r',s=1)
     else:
         pass
 
