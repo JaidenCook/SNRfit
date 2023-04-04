@@ -468,7 +468,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     
     if np.any(scatter_points):
         # Plot peak detection peaks if coordinates provided.
-        ax.scatter(scatter_points[:,1],scatter_points[:,0],color='r',s=1)
+        ax.scatter(scatter_points[:,1],scatter_points[:,0],
+                   color='r',s=point_area)
     else:
         pass
 
