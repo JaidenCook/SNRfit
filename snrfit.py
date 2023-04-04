@@ -938,7 +938,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
     return popt,perr
 
 # // This function needs to be refactored. 
-def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125):
+def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,allow_negative=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D function
     using scipy.optimise.curve_fit(), which uses a non-linear least squares method.
@@ -957,8 +957,8 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125):
         Gaussian component x,y position array, has dimension 2.
     maj_min : tuple
         Contains the major and minor axis of the SNR in arcminutes.
-    maj_frac : float
-        Fractional size limit of fit Gaussians, as a fraction of the Major axis. Defualt = 0.125.
+    maj_frac : float, default=0.125
+        Fractional size limit of fit Gaussians, as a fraction of the Major axis. 
             
     Returns:
     ----------
@@ -1010,7 +1010,6 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125):
     pguess[:,1] = coordinates[:,1]
     pguess[:,2] = coordinates[:,0]
 
-    
     if coordinates.shape[1] > 2:
         # The blob fitting method returns an expected sigma for a given peak.
         # We can use this as a guess of the actual sigma.
@@ -1027,13 +1026,17 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125):
         pguess[:,4][coordinates[:,2] > sig_y_psf] = coordinates[:,2][coordinates[:,2] > sig_y_psf]
 
     # Specifying the lower fit bounds for each Gaussian.
-    pbound_low = np.array([0.0,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
-    #pbound_low = np.array([-np.inf,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) # Template 1D array.
-    #print(pbound_low)
+    if allow_negative:
+        # If true allow fitting negative peaks.
+        # Template 1D array.
+        pbound_low = np.array([-np.inf,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) 
+    else:
+        pbound_low = np.array([0.0,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) 
+
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] # Expanding for each Gaussian component.
 
     pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
-    #print(pbound_up)
+
     #pbound_up = np.array([np.sum(data),x_hi,y_hi,Max_major,Max_major,np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
