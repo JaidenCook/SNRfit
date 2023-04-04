@@ -703,24 +703,19 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
     bkg = np.nanmedian(image)
     rms = np.nanstd(image)
 
-    #print('bkg = %5.3f, rms = %5.3f' % (bkg,rms))
-
     for i in range(Niter):
 
         # Calculating the threshold mask.
-        threshold = bkg + sigma_thresh*rms
-        #print('threshold = %5.3f' % threshold)
-        
-        if abscond:
-            thresh_mask = np.abs(image) > threshold
+        if abscond==False:
+            threshold_pve = bkg + sigma_thresh*rms
+            threshold_nve = bkg - sigma_thresh*rms
+            thresh_mask = np.logical_or((image > threshold_pve),(image < threshold_nve))
         else:
-            thresh_mask = image > threshold
-
+            thresh_mask = np.abs(image) > threshold_pve
+            
         # Subsetting the data.
         image[thresh_mask] = np.NaN
-        
-        #temp_data = image[mask_arr==False][thresh_mask]
-
+    
         # Recalculate the bkg and rms:
         bkg = np.nanmedian(image)
         rms = np.nanstd(image)
