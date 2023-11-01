@@ -720,7 +720,7 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         bkg = np.nanmedian(image)
         rms = np.nanstd(image)
 
-        print(f'Max pixel = {np.nanmax(image):5.4f}')
+        #print(f'Max pixel = {np.nanmax(image):5.4f}')
         
         if i == (Niter-1) and plot_cond:
             plt.imshow(image,origin='lower')
@@ -733,7 +733,8 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,mask_cond=Fals
         return bkg,rms
 
 def generate_correlated_noise(std,psf_params,img_dims,
-                               verbose=False,threshold=1e-1,w=None):
+                               verbose=False,threshold=1e-1,w=None,
+                               return_cond=False):
     """
     For a given input standard deviation (calculated from some image noise),
     input image psf parameters, and image dimensions, generate spatially correlated
@@ -757,6 +758,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
     w : astropy object, default=None
         Astropy world coordinate system, if given this function plots the 
         uncorrelated noise and the psf.
+    return_cond : bool,default=False
+        If True return the PSF and uncorrelated noise maps.
     """
     from scipy.signal import convolve2d
 
@@ -786,7 +789,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
 
     if np.any(w):
         print('Plotting psf image...')
-        astro_plot_2D(img_psf, w, figsize=(7.5,6),scale=0.6)
+        #astro_plot_2D(img_psf, w, figsize=(7.5,6),scale=0.6)
+        astro_plot_2D(img_psf, w, figsize=(7.5,6))
 
     # Generating the uncorrelated noise.
     # The uncorrelated noise needs to be scaled by the area of the PSF beam.
@@ -795,7 +799,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
 
     if np.any(w):
         print('Plotting uncorrelated noise image...')
-        astro_plot_2D(img_noise, w, figsize=(7.5,6),scale=0.6)
+        #astro_plot_2D(img_noise, w, figsize=(7.5,6),scale=0.6)
+        astro_plot_2D(img_noise, w, figsize=(7.5,6))
 
     # Calculating the scaling factor. 
     w_a = (a_psf)/np.sqrt(2*np.log(2))
@@ -825,7 +830,10 @@ def generate_correlated_noise(std,psf_params,img_dims,
         print(f'Input standard deviation is {std:5.3f}')
         print(f'Correlated standard deviation is {std_cor:5.3f}')
     
-    return img_correlated_noise
+    if return_cond:
+        return img_correlated_noise
+    else:
+        return img_correlated_noise,img_psf,img_noise
 
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
             thresh_fac=1,overlap=1,log_cond=False):
