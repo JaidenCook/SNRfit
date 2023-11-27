@@ -822,8 +822,10 @@ def generate_correlated_noise(std,psf_params,img_dims,
     # Error checking. The standard deviations should be similar.
     std_diff = np.abs(std_cor - std)
     if std_diff > threshold:
+        print(std_cor,std)
         err_msg = f'Difference standard deviation above threshold {std_diff:5.3e}'
-        raise ValueError(err_msg)
+        img_correlated_noise = (std/std_cor)*img_correlated_noise
+        #raise ValueError(err_msg)
     
     if verbose:
         print(f'Rescaling factor = {rescale:5.3f}')
@@ -831,9 +833,9 @@ def generate_correlated_noise(std,psf_params,img_dims,
         print(f'Correlated standard deviation is {std_cor:5.3f}')
     
     if return_cond:
-        return img_correlated_noise
-    else:
         return img_correlated_noise,img_psf,img_noise
+    else:
+        return img_correlated_noise
 
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
             thresh_fac=1,overlap=1,log_cond=False):
@@ -960,7 +962,8 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
     return popt,perr
 
 # // This function needs to be refactored. 
-def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,allow_negative=False):
+def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,
+                  allow_negative=False,bounds=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D function
     using scipy.optimise.curve_fit(), which uses a non-linear least squares method.
@@ -1062,9 +1065,13 @@ def SNR_Gauss_fit(xx,yy,data,coordinates,constants,maj_frac=0.125,allow_negative
     #pbound_up = np.array([np.sum(data),x_hi,y_hi,Max_major,Max_major,np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
-    # Getting the fit parameters, and their errors.
-    popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-            func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+    if bounds:
+        # Getting the fit parameters, and their errors.
+        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
+                func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+    else:
+        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
+                func=NGaussian2D)
 
     return popt,perr
 
