@@ -375,7 +375,7 @@ def array_plot(img_list,wcs_list,scale=1,filename=None):
 
 def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=False, 
                     clab=None, vmin=None, vmax=None, filename=None, cmap='cividis',
-                    scale=1,point_area=1,abs_cond=False):
+                    scale=1, point_area=1, abs_cond=False, ellipes=None):
     """
     2D Astro image plotter. Takes an input image array and world coordinate system
     and plots the image. 
@@ -479,6 +479,20 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     cb.ax.tick_params(labelsize=18*scale)
 
     plt.grid()
+
+    if np.any(ellipes):
+        from matplotlib.patches import Ellipse
+
+        FWHM = 2*np.sqrt(2*np.log(2))
+
+        for i in range(ellipes.shape[0]):
+            etemp = Ellipse((ellipes[i,1],ellipes[i,2]),
+                            FWHM*ellipes[i,3],FWHM*ellipes[i,4],
+                            np.degrees(ellipes[i,5])+90,fc='none',
+                            edgecolor='r',lw=1.5)
+
+
+            ax.add_artist(etemp)
 
     if filename:
         #plt.savefig('{0}.png'.format(filename),overwrite=True,bbox_inches='tight')
