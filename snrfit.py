@@ -410,6 +410,9 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         Area of the scatter point pixel.
     abs_cond : bool, default=False
         Condition for plotting the absolute values.
+    ellipes : numpy array, float, default=None
+        If given, plot ellipses, uses the same parameter format as the output for
+        SNR_Gauss_fit.
             
     Returns:
     ----------
@@ -481,17 +484,21 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     plt.grid()
 
     if np.any(ellipes):
+        # If given overlay ellipses. This is good for comparing model parameters
+        # to the fitted image. 
         from matplotlib.patches import Ellipse
 
+        # Conversion factor. 
         FWHM = 2*np.sqrt(2*np.log(2))
 
         for i in range(ellipes.shape[0]):
+            # Creating ellipse object.
             etemp = Ellipse((ellipes[i,1],ellipes[i,2]),
                             FWHM*ellipes[i,3],FWHM*ellipes[i,4],
                             np.degrees(ellipes[i,5])+90,fc='none',
                             edgecolor='r',lw=1.5)
-
-
+            
+            # Adding to axis.
             ax.add_artist(etemp)
 
     if filename:
