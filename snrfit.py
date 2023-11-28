@@ -492,10 +492,10 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         FWHM = 2*np.sqrt(2*np.log(2))
 
         for i in range(ellipes.shape[0]):
-            # Creating ellipse object.
+            #
             etemp = Ellipse((ellipes[i,1],ellipes[i,2]),
                             FWHM*ellipes[i,3],FWHM*ellipes[i,4],
-                            np.degrees(ellipes[i,5])+90,fc='none',
+                            360-np.degrees(ellipes[i,5]),fc='none',
                             edgecolor='r',lw=1.5)
             
             # Adding to axis.
@@ -508,8 +508,9 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         plt.show()
     plt.close()
 
-def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=40,alpha=0.35,
-                filename=None,label1=None,label2=None,min_val=None,max_val=None,scale=1,**kwargs):
+def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=40,
+                       alpha=0.35,filename=None,label1=None,label2=None,min_val=None,
+                       max_val=None,scale=1,**kwargs):
     """
     Plots a histogram of the multi-component residuals and the single Gaussian fit residuals.
 
@@ -581,8 +582,8 @@ def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=4
             label2 = 'Gaussian Fit'
         else:
             pass
-        axs.hist(res_data2,bins=bins,label=label2,histtype='stepfilled',alpha=alpha,lw=2,
-                density=True)
+        axs.hist(res_data2,bins=bins,label=label2,
+                 histtype='stepfilled',alpha=alpha,lw=2,density=True)
     else:
         pass
     
@@ -1436,10 +1437,12 @@ def Beam_solid_angle(major,minor):
 
     return np.pi*major*minor/(4*np.log(2))
 
-def deg_2_pixel(w,header,RA,DEC,Maj,Min):
+def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None):
     """
     Calcuates the pixel coordinates for an input wcs and RA and DEC array. Converts,
     the major and minor axis values of Gaussian fits to pixel values.
+
+    Maj and Min are now optional parameters. This function is more useful, without
 
     Parameters:
     ----------
@@ -1462,9 +1465,9 @@ def deg_2_pixel(w,header,RA,DEC,Maj,Min):
         SNR x pixel coordinate values.
     y_vec : numpy array
         SNR y pixel coordinate values.
-    Maj_pix : float
+    Maj_pix : float, optional
         SNR Major axis pixel size.
-    Min_pix : float
+    Min_pix : float, optional
         SNR Minor axis pixel size.
     """
 
@@ -1479,10 +1482,13 @@ def deg_2_pixel(w,header,RA,DEC,Maj,Min):
 
     x_vec, y_vec = w.wcs_world2pix(RA,DEC, 1)
 
-    Maj_pix = Maj/dx
-    Min_pix = Min/dx
+    if np.any(Maj) and np.any(Min):
+        Maj_pix = Maj/dx
+        Min_pix = Min/dx
 
-    return x_vec,y_vec,Maj_pix,Min_pix
+        return x_vec,y_vec,Maj_pix,Min_pix
+    else:
+        return x_vec,y_vec
 
 if __name__ == '__main__':
 
