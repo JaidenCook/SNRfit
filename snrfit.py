@@ -470,6 +470,7 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         cb.set_label(label = 'Jy/beam', fontsize=20*scale)
     
     if np.any(scatter_points):
+        # TODO Fix the coordinates. Different for scatter points 
         # Plot peak detection peaks if coordinates provided.
         ax.scatter(scatter_points[:,1],scatter_points[:,0],
                    color='r',s=point_area)
@@ -500,6 +501,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
             
             # Adding to axis.
             ax.add_artist(etemp)
+            ax.scatter(ellipes[i,1],ellipes[i,2],
+                   color='r',s=point_area)
 
     if filename:
         #plt.savefig('{0}.png'.format(filename),overwrite=True,bbox_inches='tight')
@@ -573,7 +576,7 @@ def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=4
         pass
 
     axs.hist(res_data,bins=bins,label=label1,histtype='stepfilled',color='g',
-                edgecolor='g',alpha=alpha,lw=4)
+                edgecolor='g',alpha=alpha,lw=4,density=True)
 
     if np.any(res_data2):
         res_data2 = res_data2.flatten()
