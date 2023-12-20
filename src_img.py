@@ -56,6 +56,36 @@ from skimage.feature import blob_dog, blob_log
 from src_fit import FWHM2sig, Gaussian2D, NGaussian2D
 from src_plot import astro_plot_2D
 
+def generate_primes(n):
+    """
+    Generate a set of n prime numbers. Beware, large numbers will probably take
+    time for this function to run.
+
+    Parameters:
+    ----------
+    n : int
+        Length of prime vector.
+            
+    Returns:
+    ----------
+    primes : numpy array
+        1D numpy array of prime numbers.
+    """
+
+    primes = np.zeros(n,dtype=int)
+    sieve = [True] * (n * n + 1)
+    p = 2
+    pind = 0
+    while len(primes[primes>0]) < n:
+        if sieve[p]:
+            #primes.append(p)
+            primes[pind] = p
+            pind += 1
+            for i in range(p * p, n * n + 1, p):
+                sieve[i] = False
+        p += 1
+    return primes
+
 def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,
                      mask_cond=False,plot_cond=False,abscond=False):
     """
@@ -314,12 +344,8 @@ def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
         # Calculating the flood mask. The byteswap is a bug fix for the
         # data types passed in scikit-images.
         if np.any(footprint) and not(flood):
-            print('Testing')
             mask = footprint_mask(img,(xcoord,ycoord),footprint,verbose=False)
         else:
-            print(np.any(footprint) and not(flood))
-            print(np.any(footprint))
-            print(not(flood))
             mask = flood_mask(img.byteswap().newbyteorder(),(xcoord,ycoord),
                               footprint=footprint,tolerance=tol,**kwargs)
 
