@@ -1,6 +1,6 @@
 #!/usr/bin/env python -W ignore::DeprecationWarning
 """
-Python module for fitting cutout radio images. 
+Python module for performing image manipulation on FITS files.
 
 TODO:
 Make this a package.
@@ -13,7 +13,7 @@ __author__ = "Jaiden Cook"
 __credits__ = ["Jaiden Cook"]
 __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
-__email__ = "Jaiden.Cook@student.curtin.edu"
+__email__ = "Jaiden.Cook@curtin.edu.au"
 
 # Generic stuff:
 import os,sys
@@ -41,12 +41,6 @@ plt.rc('xtick.minor', size=4, pad=4)
 plt.rc('ytick', color='k', labelsize='medium', direction='out')
 plt.rc('ytick.major', size=6, pad=4)
 plt.rc('ytick.minor', size=4, pad=4)
-
-# Parser options:
-from optparse import OptionParser
-
-# Scipy stuff:
-import scipy.optimize as opt
 
 # Astropy stuff:
 from astropy import units as u
@@ -134,6 +128,54 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,
     else:
         return bkg,rms
 
+
+def calc_footprint(a,b,pa):
+    """
+    If given then calculate the footprint. The footprint is 
+    the PSF.
+
+    Parameters:
+    ----------
+    a : float
+        Gaussian major axis. in Pixel units.
+    b : float
+        Gaussian mino axis. in Pixel units.
+    pa : float
+        Position angle in units of degrees.
+
+    Returns:
+    ----------
+    footrpint : numpy array, bool
+        2D numpy array containing 1 where the footprint is and zero elsewhere.
+    """
+    
+    # Determined by the input variables.
+    Naxis = np.rint(a + b).astype(int)
+
+    if Naxis % 2 == 0:
+        Naxis += 1
+        
+    xx_psf,yy_psf = np.mgrid[0:Naxis,0:Naxis]
+
+    # Should be in degrees. This is for consistency purposes.
+    pa = np.radians(pa)
+
+    # Centre coordinates.
+    x0 = int(Naxis/2)
+    y0 = int(Naxis/2)
+
+    # Calculate the footprint.
+    footprint =  Gaussian2D((xx_psf,yy_psf), 1, 
+                            x0, y0, FWHM2sig(a), 
+                            FWHM2sig(b), pa)
+    
+    # Setting the footprint values.
+    footprint[footprint >= 0.25] = 1.
+    footprint[footprint < 0.25] = 0
+
+    return footprint
+
+
 def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
     """
     Function for determining the island around a given set of sources. 
@@ -158,7 +200,7 @@ def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
     foot_params : tuple, default=None
         The major (a), minor (b) and position angle of
         an elliptical Gaussian. Should be the image PSF. Used to calculate
-        the footprint of the peaks.
+        the footprint of the peaks. PA should be in degrees.
     **kwargs :
         Keyword arguments for scikit-images function flood().
     
@@ -177,35 +219,23 @@ def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
     # source. 
 
     if np.any(foot_params):
-
-        # If given then calculate the footprint. The footprint is 
-        # the PSF.
-        
-        Naxis = 11 # This has to be odd, or scikit throughs an error.
-        # Should be in pixel coordinates.
         a,b,pa = foot_params
-        xx_psf,yy_psf = np.mgrid[0:Naxis,0:Naxis]
-
-        # Centre coordinates.
-        x0 = int(Naxis/2)
-        y0 = int(Naxis/2)
-
-        # Calculate the footprint.
-        footprint =  Gaussian2D((xx_psf,yy_psf), 1, 
-                                x0, y0, FWHM2sig(a), 
-                                FWHM2sig(b), pa)
-        
-        # Setting the footprint values.
-        footprint[footprint >= 0.25] = 1.
-        footprint[footprint < 0.25] = 0
+        footprint = calc_footprint(a,b,pa)
     else:
         footprint = None
     
     # Number of sources/peaks.
     Npeaks = peaks_vec.shape[0]
 
-    sigmas = peaks_vec[:,-1]
-    Npix_est = np.ceil(2*np.pi*sigmas**2) # Npixels estimate.
+    #
+    if (peaks_vec.shape[-1] < 3) or foot_params:
+        sigmas = FWHM2sig(a)*np.ones(Npeaks)
+        Npix_est = np.ceil(2*np.pi*FWHM2sig(a)*FWHM2sig(b))*np.ones(Npeaks)
+    else:
+        # If the peak vec has a third column assume it is the size column.
+        sigmas = peaks_vec[:,-1]
+    
+        Npix_est = np.ceil(2*np.pi*sigmas**2) # Npixels estimate.
 
     # Creating the island mask cube. Each slice is for a given
     # source. 
@@ -255,8 +285,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
     std : float
         Standard deviation of image noise.
     psf_params : list
-        List of psf major, minor and position angle. Major and minor axes should be
-        units of pixels.
+        List of psf major, minor and position angle. Major and minor axes should 
+        be units of pixels.
     img_dims : tuple
         Tuple containing the image X and Y axis pixel sizes. 
     verbose : bool, default=False
@@ -291,7 +321,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
     ppsf = np.array([1,0,0,sigx_psf,sigy_psf,theta_psf])
 
     # Generating the image. 
-    img_psf = NGaussian2D((xx_pix,yy_pix),ppsf,fit=False).reshape(img_dims[0],img_dims[1])
+    img_psf = NGaussian2D((xx_pix,yy_pix),ppsf,fit=False).reshape(img_dims[0],
+                                                                  img_dims[1])
 
     if np.any(w):
         print('Plotting psf image...')
@@ -321,7 +352,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
     img_scaled = img_noise*rescale
 
     # Convoling the psf with the noise.
-    img_correlated_noise = convolve2d(img_psf,img_scaled,mode='same',boundary='wrap')
+    img_correlated_noise = convolve2d(img_psf,img_scaled,mode='same',
+                                      boundary='wrap')
 
     std_cor = np.nanstd(img_correlated_noise)
 
@@ -342,6 +374,7 @@ def generate_correlated_noise(std,psf_params,img_dims,
         return img_correlated_noise,img_psf,img_noise
     else:
         return img_correlated_noise
+
 
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
             thresh_fac=1,overlap=1,log_cond=False):
@@ -370,7 +403,8 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
     Returns
     ----------
     coord_sigma_amp_vec : numpy array
-        numpy array containing the coordinates (x,y), sigma and amp for each peak.
+        numpy array containing the coordinates (x,y), sigma and amp for each 
+        peak.
     """
     (a_psf,Major,dx,rms) = constants
 
@@ -393,9 +427,11 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
     print('Maximum sigma = %5.3f' % max_sigma)
 
     # coord_log = [xcoord,ycoord,blob_size]
-    # Getting the location of the peaks in x,y as well as the expected blob size. 
-    coordinates_sigma_vec = blob_log(image_nu,min_sigma=min_sigma,max_sigma=max_sigma,
-        log_scale=log_cond,threshold=rms*thresh_fac,num_sigma=num_sigma,overlap=overlap)
+    # Get the location of the peaks in x,y as well as the expected blob size. 
+    coordinates_sigma_vec = blob_log(image_nu,min_sigma=min_sigma,
+                                     max_sigma=max_sigma,log_scale=log_cond,
+                                     threshold=rms*thresh_fac,
+                                     num_sigma=num_sigma,overlap=overlap)
 
     print('Performing peak detection with %5.3e threshold.' % (rms*thresh_fac))
 
@@ -413,15 +449,18 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
         # First three columns are equal to coord_log.
         coord_sigma_amp_vec[:,:3] = coordinates_sigma_vec
 
-        # Guessing the Gaussian amplitude as the pixel value closest to the peak coordinates.
-        coord_sigma_amp_vec[:,3] = image_nu[(coordinates_sigma_vec[:,0]-1).astype(int),
-                                (coordinates_sigma_vec[:,1]-1).astype(int)]
+        # Guessing the Gaussian amplitude as the pixel value closest to the peak 
+        # coordinates.
+        coord_sigma_amp_vec[:,3] = \
+            image_nu[(coordinates_sigma_vec[:,0]-1).astype(int),
+                     (coordinates_sigma_vec[:,1]-1).astype(int)]
 
         return coord_sigma_amp_vec
     
 def convolve_image(image,header,Gauss_size):
     """
-    Simple image convolver. Takes input image, header, and new Gaussian size in degrees. 
+    Simple image convolver. Takes input image, header, and new Gaussian size in 
+    degrees. 
 
     Parameters:
     ----------

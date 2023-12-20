@@ -1,6 +1,6 @@
 #!/usr/bin/env python -W ignore::DeprecationWarning
 """
-Python module for fitting cutout radio images. 
+Python module for plotting Gaussian fits to FITS format images. 
 
 TODO:
 Make this a package.
@@ -13,7 +13,7 @@ __author__ = "Jaiden Cook"
 __credits__ = ["Jaiden Cook"]
 __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
-__email__ = "Jaiden.Cook@student.curtin.edu"
+__email__ = "Jaiden.Cook@curtin.edu.au"
 
 # Generic stuff:
 import os,sys
@@ -42,12 +42,6 @@ plt.rc('ytick', color='k', labelsize='medium', direction='out')
 plt.rc('ytick.major', size=6, pad=4)
 plt.rc('ytick.minor', size=4, pad=4)
 
-# Parser options:
-from optparse import OptionParser
-
-# Scipy stuff:
-import scipy.optimize as opt
-
 # Astropy stuff:
 from astropy import units as u
 from astropy import wcs
@@ -56,8 +50,6 @@ from astropy.table import Table
 from astropy.io.votable import writeto as writetoVO
 from astropy.wcs import WCS
 
-# Image processing packages:
-from skimage.feature import blob_dog, blob_log
 
 ## Plotting functions.
 def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
@@ -125,9 +117,9 @@ def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
     ax3.tick_params('y',labeltop=False)
 
     # Creating image objects for each axis. 
-    im1 = ax1.imshow(img_nu, cmap='cividis', vmin=vmin, vmax=vmax, aspect='auto')
-    im2 = ax2.imshow(zz, cmap='cividis', vmin=vmin, vmax=vmax, aspect='auto')
-    im3 = ax3.imshow(resid_img, cmap='cividis', vmin=vmin, vmax=vmax, aspect='auto')
+    im1 = ax1.imshow(img_nu,cmap='cividis',vmin=vmin,vmax=vmax,aspect='auto')
+    im2 = ax2.imshow(zz,cmap='cividis',vmin=vmin,vmax=vmax,aspect='auto')
+    im3 = ax3.imshow(resid_img,cmap='cividis',vmin=vmin,vmax=vmax,aspect='auto')
 
     # Adding titles to the subfigures. 
     ax1.set_title('Data')
@@ -211,9 +203,9 @@ def array_plot(img_list,wcs_list,scale=1,filename=None):
     else:
         Nrows = int(Nimags/Ncols)
     
-    # If the input wcs list doesn't match the image number then raise a ValueError.
-    # If the input wcs list is not a list then ignore this. All images might share
-    # the same wcs. 
+    # If the input wcs list doesn't match the image number then raise a 
+    # ValueError. If the input wcs list is not a list then ignore this. 
+    # All images might share the same wcs. 
     if type(wcs_list) == list:
         if (len(wcs_list) % Nrows) != 0:
             err_str = (f"Number of wcs coordinate systems {len(wcs_list)}"\
@@ -298,15 +290,18 @@ def array_plot(img_list,wcs_list,scale=1,filename=None):
             else:
                 axs_temp.set_xlabel(' ',fontsize=fontsize*scale)
 
-            axs_temp.tick_params(axis='both', color = 'k', which='major', labelsize=labelsize*scale)
+            axs_temp.tick_params(axis='both',color='k',which='major', 
+                                 labelsize=labelsize*scale)
 
-            im_temp = axs_temp.imshow(img, cmap='cividis', vmin=vmin, vmax=vmax, aspect='auto')
+            im_temp = axs_temp.imshow(img,cmap='cividis',vmin=vmin,vmax=vmax,
+                                      aspect='auto')
 
-            cb_temp = fig.colorbar(im_temp, ax=axs_temp, pad =0.002, extend=extend)        
+            cb_temp = fig.colorbar(im_temp,ax=axs_temp,pad=0.002,extend=extend)        
             cb_temp.ax.tick_params(labelsize=labelsize*scale)
 
             if j == (Ncols-1):
-                cb_temp.set_label(r'Intensity $\rm{[Jy/Beam]}$',fontsize=fontsize*scale)
+                cb_temp.set_label(r'Intensity $\rm{[Jy/Beam]}$',
+                                  fontsize=fontsize*scale)
             else:
                 cb_temp.ax.tick_params(labelright=False)
                 
@@ -322,14 +317,16 @@ def array_plot(img_list,wcs_list,scale=1,filename=None):
     
     plt.close()
 
-def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=False, 
-                    clab=None, vmin=None, vmax=None, filename=None, cmap='cividis',
-                    scale=1, point_area=1, abs_cond=False, ellipes=None):
-    """
-    2D Astro image plotter. Takes an input image array and world coordinate system
-    and plots the image. 
 
-    TODO: Add a condition for the colourmap scale. support for log, power, sqrt methods.
+def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
+                  clab=None,vmin=None,vmax=None,filename=None,cmap='cividis',
+                  scale=1,point_area=1,abs_cond=False,ellipes=None):
+    """
+    2D Astro image plotter. Takes an input image array and world coordinate 
+    system and plots the image. 
+
+    TODO: Add a condition for the colourmap scale. support for log, power, sqrt 
+    methods.
     
     Parameters:
     ----------
@@ -360,8 +357,8 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
     abs_cond : bool, default=False
         Condition for plotting the absolute values.
     ellipes : numpy array, float, default=None
-        If given, plot ellipses, uses the same parameter format as the output for
-        SNR_Gauss_fit.
+        If given, plot ellipses, uses the same parameter format as the output 
+        for SNR_Gauss_fit.
             
     Returns:
     ----------
@@ -460,16 +457,18 @@ def astro_plot_2D(image, wcs, figsize=(10,10), scatter_points=None, lognorm=Fals
         plt.show()
     plt.close()
 
-def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),bins=40,
-                       alpha=0.35,filename=None,label1=None,label2=None,min_val=None,
-                       max_val=None,scale=1,**kwargs):
+def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),
+                       bins=40,alpha=0.35,filename=None,label1=None,label2=None,
+                       min_val=None,max_val=None,scale=1,**kwargs):
     """
-    Plots a histogram of the multi-component residuals and the single Gaussian fit residuals.
+    Plots a histogram of the multi-component residuals and the single Gaussian 
+    fit residuals.
 
     Parameters:
     ----------
     res_data : numpy array
-        Numpy array containing the residual data for the multi-component Gaussian fit.
+        Numpy array containing the residual data for the multi-component 
+        Gaussian fit.
     res_data2 : numpy array, default=None
         Numpy array containing the residual data for the single Gaussian fit.
     N_peaks : int, default=None

@@ -13,7 +13,7 @@ __author__ = "Jaiden Cook"
 __credits__ = ["Jaiden Cook"]
 __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
-__email__ = "Jaiden.Cook@student.curtin.edu"
+__email__ = "Jaiden.Cook@curtin.edu.au"
 
 # Generic stuff:
 import os,sys
@@ -42,8 +42,6 @@ plt.rc('ytick', color='k', labelsize='medium', direction='out')
 plt.rc('ytick.major', size=6, pad=4)
 plt.rc('ytick.minor', size=4, pad=4)
 
-# Parser options:
-from optparse import OptionParser
 
 # Scipy stuff:
 import scipy.optimize as opt
@@ -325,17 +323,18 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 def fit_psf(xx,yy,data,coordinates,psf_params,
             bounds=True):
     """
-    Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D function
-    using scipy.optimise.curve_fit(), which uses a non-linear least squares method.
-    In future this function should be refactored, especially if we want to consider using
-    different fitting methods such as a Bayesian approach.    
+    Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
+    function using scipy.optimise.curve_fit(), which uses a non-linear least 
+    squares method. In future this function should be refactored, especially if 
+    we want to consider using different fitting methods such as a Bayesian 
+    approach.    
 
     Parameters:
     ----------
     xx : numpy array
-        Numpy array containing the x-positions for the data, should have dimension 1.
+        Numpy array containing the x-positions for the data, should have dim 1.
     yy : numpy array 
-        Numpy array containing the y-positions for the data, should have dimension 1.
+        Numpy array containing the y-positions for the data, should have dim 1.
     data : numpy array
         Numpy array containing the image data, should have dimensions 1.
     coordinates : numpy array
@@ -473,6 +472,7 @@ def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
     else:
         # Default option.
         return chisqd
+
 
 def write_model_table(popt,perr,constants,alpha,SNR_ID,w,outname=None):
     """
@@ -639,55 +639,6 @@ def write_model_table(popt,perr,constants,alpha,SNR_ID,w,outname=None):
     return t
 
 
-def convolve_image(image,header,Gauss_size):
-    """
-    Simple image convolver. Takes input image, header, and new Gaussian size in 
-    degrees. 
-
-    Parameters:
-    ----------
-    image : numpy array
-        Numpy array containing the image.
-    header : astropy object
-        Astropy FITS header image object.
-    Gauss_size : float
-        Convolving Gaussian size in degrees.
-            
-    Returns:
-    ----------
-    image_nu : numpy array
-        Numpy array containing the convolved image.
-    header : astropy object
-        Updated header.
-
-    """
-
-    from scipy.ndimage import gaussian_filter
-
-    dx = header['CD2_2'] #pixel size in degrees [deg]
-
-    N_pix = int(Gauss_size/dx)
-
-    print('Gaussian width = %3i [pix]' % N_pix)
-
-    image_nu = gaussian_filter(image, sigma=N_pix)
-
-    # Getting header Major and minor 
-    bmaj = float(header['BMAJ']) # [deg]
-    bmin = float(header['BMIN']) # [deg]
-    
-    # Width of the convolving Gaussian.
-    sigma = N_pix*dx # [deg]
-    major = 2*np.sqrt(2*np.log(2))*sigma # Major axis [deg]
-
-    # Calculating the new restoing beam major and minor axes in degrees.
-    bmaj_nu = np.sqrt(major**2 + bmaj**2)
-    bmin_nu = np.sqrt(major**2 + bmin**2)
-
-    header['BMAJ'] = bmaj_nu
-    header['BMIN'] = bmin_nu
-
-    return image_nu,header
 
 def model_select(params1,params2,perr1,perr2,xx,yy,data,rms):
     """
