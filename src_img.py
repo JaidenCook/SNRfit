@@ -552,6 +552,72 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
 
         return coord_sigma_amp_vec
     
+def group_peaks(island_cube,peaks_vec):
+    """
+    Function that figures out which peaks belong to which islands.
+
+    Parameters:
+    ----------
+    island_cube : numpy array, bool
+        3D numpy array, contains source masks.
+    peaks_vec : tuple, float
+        Contains the xy pixel coordinates.
+
+    Returns:
+    ----------
+    source_list : list, numpy array
+        Contains a list of the coordinates for each source. Some sources can
+        have multiple components.
+    mask_list : list, numpy array
+        Contains a list of numpy boolean arrays for each source. Where the array
+        is the island mask.
+    """
+    Npeaks = len(peaks_vec)
+    prime_vec = generate_primes(Npeaks)
+
+    # Multiply each slice by their respective prime.
+    island_cube = island_cube*prime_vec[None,None,:]
+
+    # Set all zero values to 1 so we can perform the product.
+    #island_cube[island_cube == 0] = 1
+    island_cube[island_cube < 1] = 1
+
+    # Creating the product slice.
+    island_prod = np.prod(island_cube,axis=2)
+
+    # Get all the unique values, that are not 1.
+    island_unique = np.unique(island_prod)[1:]
+
+    # Initialise the mask and source lists.
+    source_list = []
+    mask_list = []
+
+    ##
+    # This should work for both island cases.
+    ##
+    for val in island_unique:
+
+        # Find all coordinates that are factors of the product.
+        coord_ind_vec = val % prime_vec
+
+        # All factors will have zero mod.
+        source_list.append(peaks_vec[coord_ind_vec==0,:2])
+
+        # Get the source mask.
+        source_mask = island_prod == val
+        for prime in prime_vec[coord_ind_vec==0]:
+
+            # Add the non-overlapping parts of the source mask.
+            source_mask += (island_prod == prime)
+
+        # Accumulate the masks, will need these to get the data.
+        # Might make this an optional output. Depends on use cases for function.
+        mask_list.append(source_mask)
+
+
+    return source_list,mask_list
+
+    
 def convolve_image(image,header,Gauss_size):
     """
     Simple image convolver. Takes input image, header, and new Gaussian size in 
