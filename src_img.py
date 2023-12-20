@@ -176,7 +176,68 @@ def calc_footprint(a,b,pa):
     return footprint
 
 
-def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
+def footprint_mask(img,coords,footprint,verbose=False):
+    """
+    Function for placing a footrpint into a given img.
+
+    Parameters:
+    ----------
+    img : numpy array, float
+        2D numpy array containing the image data.
+    coords : tuple, float
+        Contains the xy pixel coordinates.
+    footprint : numpy array, float
+        2D array containing the footprint.
+    verbose : bool, default=False
+        Print more output if True.
+
+    Returns:
+    ----------
+    mask : numpy array, bool
+        Mask array with the same shape as img. Contains True where the footprint
+        exists, and False esle where (0 or 1).
+    """
+    # Initialising the mask.
+    mask = np.zeros(img.shape)
+
+    # Getting the footprint coordinates.
+    Naxis = len(footprint)
+    xfoot,yfoot = np.mgrid[0:Naxis,0:Naxis].astype(int)
+
+    xfoot = xfoot - int(Naxis/2) + 1
+    yfoot = yfoot - int(Naxis/2) + 1
+
+    # Getting the index array.
+    xind_arr = int(coords[0])-yfoot
+    yind_arr = int(coords[1])-xfoot
+
+
+    # We don't want any of the negatives, this will cause wrapping.
+    yind_arr = yind_arr[xind_arr > 0]
+    footprint = footprint[xind_arr > 0]
+    xind_arr = xind_arr[xind_arr > 0]
+
+    # Performing the same negative operation.
+    xind_arr = xind_arr[yind_arr > 0]
+    footprint = footprint[yind_arr > 0]
+    yind_arr = yind_arr[yind_arr > 0]
+
+    # Only care about locations where the footprint is not zero.
+    xind_arr = xind_arr[footprint > 0]
+    yind_arr = yind_arr[footprint > 0]
+
+    if verbose:
+        print(xind_arr)
+        print(yind_arr)
+    
+    # Getting the mask.    
+    mask[xind_arr,yind_arr] = footprint[footprint>0]
+
+    return mask
+
+
+def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
+                flood=True,**kwargs):
     """
     Function for determining the island around a given set of sources. 
     Each source is represented by a peak value which has an associated x and y 
@@ -212,14 +273,14 @@ def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
         slice is the boolean mask for each identified island.
     
     """
-    from skimage.segmentation import flood
+    from skimage.segmentation import flood as flood_mask
 
     ## TODO
     # Need to figure out how to group point that are associated to the same
     # source. 
 
-    if np.any(foot_params):
-        a,b,pa = foot_params
+    if np.any(footparams):
+        a,b,pa = footparams
         footprint = calc_footprint(a,b,pa)
     else:
         footprint = None
@@ -228,14 +289,15 @@ def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
     Npeaks = peaks_vec.shape[0]
 
     #
-    if (peaks_vec.shape[-1] < 3) or foot_params:
+    if np.any(footparams):
         sigmas = FWHM2sig(a)*np.ones(Npeaks)
         Npix_est = np.ceil(2*np.pi*FWHM2sig(a)*FWHM2sig(b))*np.ones(Npeaks)
-    else:
+    elif peaks_vec[0,:].size == 3:
         # If the peak vec has a third column assume it is the size column.
         sigmas = peaks_vec[:,-1]
-    
         Npix_est = np.ceil(2*np.pi*sigmas**2) # Npixels estimate.
+    else:
+        Npix_est = None
 
     # Creating the island mask cube. Each slice is for a given
     # source. 
@@ -251,17 +313,24 @@ def island_calc(img,peaks_vec,eps=0.7,foot_params=None,verbose=False,**kwargs):
 
         # Calculating the flood mask. The byteswap is a bug fix for the
         # data types passed in scikit-images.
-        flood_mask = flood(img.byteswap().newbyteorder(),(xcoord,ycoord),
-                    footprint=footprint,
-                    tolerance=tol,**kwargs)
-        
-        # Calc the number of pixels in the island.
-        Npix_island = img[flood_mask].size
+        if np.any(footprint) and not(flood):
+            print('Testing')
+            mask = footprint_mask(img,(xcoord,ycoord),footprint,verbose=False)
+        else:
+            print(np.any(footprint) and not(flood))
+            print(np.any(footprint))
+            print(not(flood))
+            mask = flood_mask(img.byteswap().newbyteorder(),(xcoord,ycoord),
+                              footprint=footprint,tolerance=tol,**kwargs)
 
+        mask = mask.astype(bool)
         # Assign the mask to the island.
-        island_cube[:,:,ind] = flood_mask
+        island_cube[:,:,ind] = mask
 
         if verbose:
+            # Calc the number of pixels in the island.
+            Npix_island = img[mask].size
+
             print(Npix_island,Npix_est[ind])
 
     return island_cube
