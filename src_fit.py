@@ -320,8 +320,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
 
 # // This function needs to be refactored. 
-def fit_psf(xx,yy,data,coordinates,psf_params,
-            bounds=True):
+def fit_psf(xx,yy,data,coords,psf_params,
+            bounds=True,peak_fit=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -337,8 +337,16 @@ def fit_psf(xx,yy,data,coordinates,psf_params,
         Numpy array containing the y-positions for the data, should have dim 1.
     data : numpy array
         Numpy array containing the image data, should have dimensions 1.
-    coordinates : numpy array
+    coords : numpy array
         Gaussian component x,y position array, has dimension 2.
+    psf_params : tuple
+        Contains the PSF parameters in pixel coords, specifically the sigx, sigy
+        and the position angle (pa) in radians.
+    bounds : bool, default=True
+        If True fit with boundary conditions. Turn off if answers are infeasible.
+    peak_fit : bool, default=False
+        If True only fit the amplitude. Effectively make the bounds on the other
+        parameters small. By defualt sets bounds True if set to False.
             
     Returns:
     ----------
@@ -355,16 +363,20 @@ def fit_psf(xx,yy,data,coordinates,psf_params,
 
     # Parameter array dimensions. 
     # This will cause problems if I only fit a single source. 
-    if len(coordinates.shape) > 1:
+    if len(coords.shape) > 1:
+    #if coords.shape[-1] > 1:
         # If more than one Gaussian is to be fit.
-        N_gauss = len(coordinates)
+        N_gauss = len(coords)
     else:
         # Case where only one Gaussian is to be fit.
-        coordinates = np.array([coordinates])
+        coords = np.array([coords])
         N_gauss = 1
 
     # Number of parameters.
     N_params = len(p0)
+
+    if peak_fit:
+        bounds = True
 
     if bounds:
         # Defining the min and max peak x location limits.
@@ -390,10 +402,21 @@ def fit_psf(xx,yy,data,coordinates,psf_params,
 
         
         # Expanding for each Gaussian component.
-        if N_gauss > 1:
+        #if N_gauss > 1:
             # If there is more than one Gaussian to fit. 
-            pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-            pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
+            #pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
+            #pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
+
+        pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
+        pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
+
+        if peak_fit:
+            # Setting the peak position bounds to be restricted to inputs.
+            pbound_low[:,1] = coords[:,1] - epsilon
+            pbound_low[:,2] = coords[:,0] - epsilon
+
+            pbound_up[:,1] = coords[:,1] + epsilon
+            pbound_up[:,2] = coords[:,0] + epsilon
 
     else:
         pbound_low = None
@@ -402,13 +425,14 @@ def fit_psf(xx,yy,data,coordinates,psf_params,
     # The guess parameter array.
     pguess = np.ones((N_gauss,N_params))*p0[None,:]
 
+    print(coords.shape)
     # Assigning initial positions.
-    pguess[:,1] = coordinates[:,1] # x-coord
-    pguess[:,2] = coordinates[:,0] # y-coord
+    pguess[:,1] = coords[:,1] # x-coord
+    pguess[:,2] = coords[:,0] # y-coord
 
     # Getting the fit parameters, and their errors.
-    popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-            func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+    popt,perr = Gaussian_2Dfit(xx,yy,data,pguess,
+                               func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
 
     if N_gauss == 1:
         # Doesn't need to be 2D if only a single Gaussian.
