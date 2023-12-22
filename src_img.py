@@ -552,6 +552,7 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
 
         return coord_sigma_amp_vec
     
+
 def group_peaks(island_cube,peaks_vec):
     """
     Function that figures out which peaks belong to which islands.
@@ -590,18 +591,55 @@ def group_peaks(island_cube,peaks_vec):
 
     # Initialise the mask and source lists.
     source_list = []
+    blended_list = []
     mask_list = []
 
     ##
     # This should work for both island cases.
     ##
+    sourceID_vec = np.arange(Npeaks)
     for val in island_unique:
 
         # Find all coordinates that are factors of the product.
         coord_ind_vec = val % prime_vec
 
+        source_temp = sourceID_vec[coord_ind_vec==0]
+
+        if source_temp.size > 1:
+            blended_list.append(source_temp)
+
+             # All factors will have zero mod.
+            source_list.append(sourceID_vec[coord_ind_vec==0])
+
+            # Get the source mask.
+            source_mask = island_prod == val
+            for prime in prime_vec[coord_ind_vec==0]:
+
+                # Add the non-overlapping parts of the source mask.
+                source_mask += (island_prod == prime)
+
+            # Accumulate the masks, will need these to get the data.
+            # Might make this an optional output. Depends on use cases for function.
+            mask_list.append(source_mask)
+    
+    # Deleting the belnded sources from the lists.
+    for blendedID in blended_list:
+        sourceID_vec = np.delete(sourceID_vec,blendedID)
+        prime_vec = np.delete(prime_vec,blendedID)
+
+
+    for val in island_unique:
+
+        # Find all coordinates that are factors of the product.
+        coord_ind_vec = val % prime_vec
+        #print(coord_ind_vec)
+
         # All factors will have zero mod.
-        source_list.append(peaks_vec[coord_ind_vec==0,:2])
+        if np.any(coord_ind_vec==0):
+            source_list.append(sourceID_vec[coord_ind_vec==0])
+        else:
+            # If there is no zero mod values skip to the next iteration.
+            continue
 
         # Get the source mask.
         source_mask = island_prod == val
