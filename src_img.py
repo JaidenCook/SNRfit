@@ -188,7 +188,9 @@ def calc_footprint(a,b,pa):
     xx_psf,yy_psf = np.mgrid[0:Naxis,0:Naxis]
 
     # Should be in degrees. This is for consistency purposes.
-    pa = np.radians(pa)
+    #pa = np.radians(pa)
+    # Should be in radians. 
+    pa = pa
 
     # Centre coordinates.
     x0 = int(Naxis/2)
@@ -234,8 +236,8 @@ def footprint_mask(img,coords,footprint,verbose=False):
     Naxis = len(footprint)
     xfoot,yfoot = np.mgrid[0:Naxis,0:Naxis].astype(int)
 
-    xfoot = xfoot - int(Naxis/2) + 1
-    yfoot = yfoot - int(Naxis/2) + 1
+    xfoot = xfoot - int(Naxis/2) #+1#+ 1
+    yfoot = yfoot - int(Naxis/2) #+1#+ 1
 
     # Getting the index array.
     xind_arr = int(coords[0])-yfoot
