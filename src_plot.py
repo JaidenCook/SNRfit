@@ -364,13 +364,30 @@ def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
     ----------
     None
     """
-    
-    # If array issues, use wcs.celestial
-    if lognorm:
-        from matplotlib.colors import LogNorm
-        norm = LogNorm()
+    if vmax:
+        vmax=vmax
     else:
-        norm=None
+        vmax = np.nanmax(image)*0.8
+    
+    if vmin:
+        vmin=vmin
+    else:
+        vmin = np.nanmin(image)*1.2
+
+
+
+    # If array issues, use wcs.celestial
+    import matplotlib
+
+    if lognorm:
+        if vmin < 0:
+            # If less than zero make asihn symmetric lognorm colorbar.
+            norm = matplotlib.colors.AsinhNorm(vmin=vmin,vmax=vmax,
+                                           linear_width=0.1)
+        else:
+            norm = matplotlib.colors.LogNorm(vmin=vmin,vmax=vmax)
+    else:
+        norm = matplotlib.colors.Normalize(vmin=vmin,vmax=vmax)
 
     if scale != 1:
         # If scale is not default, rescale the figure size.
@@ -402,11 +419,10 @@ def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
         extend = 'both'
 
     if abs_cond:
-        im = ax.imshow(np.abs(image), origin='lower', cmap=cmap,norm=norm, 
-                    vmin=vmin, vmax=vmax, aspect='auto')
+        im = ax.imshow(np.abs(image),origin='lower',cmap=cmap,norm=norm,
+                       aspect='auto')
     else:
-        im = ax.imshow(image, origin='lower', cmap=cmap,norm=norm, 
-                       vmin=vmin, vmax=vmax, aspect='auto')
+        im = ax.imshow(image,origin='lower',cmap=cmap,norm=norm,aspect='auto')
     
     cb = fig.colorbar(im, ax=ax, pad =0.002, extend=extend)
     
@@ -438,6 +454,10 @@ def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
         # Conversion factor. 
         FWHM = 2*np.sqrt(2*np.log(2))
 
+        if len(ellipes.shape) < 2:
+            # This expects a shape (Nellipses,Nparams). If only one ellipse, w
+            # wrap to fit.
+            ellipes = np.array([ellipes])
         for i in range(ellipes.shape[0]):
             #
             etemp = Ellipse((ellipes[i,1],ellipes[i,2]),
