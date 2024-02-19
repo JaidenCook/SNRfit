@@ -425,7 +425,6 @@ def fit_psf(xx,yy,data,coords,psf_params,
     # The guess parameter array.
     pguess = np.ones((N_gauss,N_params))*p0[None,:]
 
-    print(coords.shape)
     # Assigning initial positions.
     pguess[:,1] = coords[:,1] # x-coord
     pguess[:,2] = coords[:,0] # y-coord
