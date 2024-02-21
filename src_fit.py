@@ -66,6 +66,14 @@ def FWHM2sig(FWHM):
 
     return FWHM/(2*np.sqrt(2*np.log(2)))
 
+def sig2FWHM(sig):
+    """
+    I'm tired of doing this manually here is a function
+    to convert from FWHM to sigma. Units don't matter.
+    """ 
+
+    return sig*(2*np.sqrt(2*np.log(2)))
+
 def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
     """
     Generalised 2DGaussian function.
