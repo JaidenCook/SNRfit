@@ -51,7 +51,7 @@ from astropy.io.votable import writeto as writetoVO
 from astropy.wcs import WCS
 
 # Image processing packages:
-from skimage.feature import blob_dog, blob_log
+from skimage.feature import blob_dog, blob_log, blob_doh
 
 from src_fit import FWHM2sig, Gaussian2D, NGaussian2D
 from src_plot import astro_plot_2D
@@ -412,8 +412,8 @@ def generate_correlated_noise(std,psf_params,img_dims,
     # Creating the PSF function.
     a_psf,b_psf,theta_psf = psf_params
 
-    sigx_psf = a_psf/(2*np.sqrt(2*np.log(2))) 
-    sigy_psf = b_psf/(2*np.sqrt(2*np.log(2))) 
+    sigx_psf = FWHM2sig(a_psf)
+    sigy_psf = FWHM2sig(b_psf)
 
     ppsf = np.array([1,0,0,sigx_psf,sigy_psf,theta_psf])
 
@@ -474,7 +474,7 @@ def generate_correlated_noise(std,psf_params,img_dims,
 
 
 def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
-            thresh_fac=1,overlap=1,log_cond=False):
+            thresh_fac=1,overlap=1,log_cond=False,threshold_rel=None):
     """
     Determines the number of peaks, their locations, sizes and amplitudes for an
     input image. Builds the core of the model parameter guess.
@@ -511,30 +511,38 @@ def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
         raise ValueError("'overlap' variable cannot be greater than 1.")
     
     # Calculating the minimum sigma in pixel coordinates.
-    min_sigma = (a_psf/dx)/(2*np.sqrt(2*np.log(2)))
+    min_sigma = FWHM2sig(a_psf/dx)
 
-    print('Min sigma =  %5.3f [pix]' % min_sigma)
+    print(f'Min sigma =  {min_sigma:5.3f} [pix]')
 
     #max_angle = 0.5*Major/60 # deg
     max_angle = Major/60 # deg
 
     # Max sigma is determined by the SNR size. 
-    max_sigma = maj_fac*(max_angle/dx)/(2*np.sqrt(2*np.log(2)))
+    max_sigma = maj_fac*FWHM2sig(max_angle/dx)
 
-    print('Maximum sigma = %5.3f' % max_sigma)
+    print(f'Maximum sigma = {max_sigma:5.3f}')
+
+    if thresh_fac:
+        threshold = rms*thresh_fac
+        print(f'Performing peak detection with {threshold:5.3e} threshold.')
+
+    elif thresh_fac == None:
+        threshold = None
+
 
     # coord_log = [xcoord,ycoord,blob_size]
     # Get the location of the peaks in x,y as well as the expected blob size. 
     coordinates_sigma_vec = blob_log(image_nu,min_sigma=min_sigma,
                                      max_sigma=max_sigma,log_scale=log_cond,
-                                     threshold=rms*thresh_fac,
-                                     num_sigma=num_sigma,overlap=overlap)
+                                     threshold=threshold,
+                                     num_sigma=num_sigma,overlap=overlap,
+                                     threshold_rel=threshold_rel)
 
-    print('Performing peak detection with %5.3e threshold.' % (rms*thresh_fac))
 
     try:
         N_peaks = len(coordinates_sigma_vec)
-        print('Detected an initial %s peaks.' % N_peaks)
+        print(f'Detected an initial {N_peaks} peaks.')
     except TypeError:
         print('No peaks detected. Adjust input parameters.')
         N_peaks = 0
