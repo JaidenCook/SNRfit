@@ -374,8 +374,6 @@ def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
     else:
         vmin = np.nanmin(image)*1.2
 
-
-
     # If array issues, use wcs.celestial
     import matplotlib
 
