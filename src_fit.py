@@ -259,8 +259,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     PA_psf = np.abs(np.radians(constants[5])) # [rads]
 
     # Restoring beam sizes in pixels:
-    sig_x_psf = (a_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
-    sig_y_psf = (b_psf/pixel_scale)/(2*np.sqrt(2*np.log(2)))
+    sig_x_psf = FWHM2sig(a_psf/pixel_scale)
+    sig_y_psf = FWHM2sig(b_psf/pixel_scale)
 
     print(sig_x_psf,sig_y_psf)
 
