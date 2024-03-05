@@ -181,7 +181,8 @@ def gaussuv_abc2sig(alpha,beta,gamma):
         Gaussian position angle in radians. 
     """
 
-    pa = 0.5*np.arctan2(2*beta,(alpha - gamma))
+    #pa = 0.5*np.arctan2(2*beta,(alpha - gamma))
+    pa = 0.5*np.arctan2(2*beta,(alpha - gamma)) + np.pi
 
     sigl = np.sqrt(alpha*np.cos(pa)**2 + 2*beta*np.cos(pa)*np.sin(pa) + \
                     gamma*np.sin(pa)**2)/(np.sqrt(2)*np.pi)
@@ -190,3 +191,114 @@ def gaussuv_abc2sig(alpha,beta,gamma):
                     gamma*np.cos(pa)**2)/(np.sqrt(2)*np.pi)
 
     return sigl,sigm,pa
+
+def conv_gauss(gauss1,gauss2,degrees=True):
+    """
+    Calculates the analytic convolution of two Gaussians. Convention here, is 
+    that gauss1 is the psf/beam if used in this format.
+
+    Parameters:
+    ----------
+    gauss1 : list,tuple or ndarray
+        x axis coefficient.
+    gauss2 : list,tuple or ndarray
+        correlation coefficient.
+
+    Returns:
+    ----------
+    sigxc : float
+        Gaussian major/sigma axis.
+    sigyc : float
+        Gaussian minor/sigma axis.
+    PAc : float
+        Gaussian position angle in radians. 
+    """
+    # Unpacking the gauss params for the first Gaussian.
+    sigx1 = gauss1[0]
+    sigy1 = gauss1[1]
+    PA1 = gauss1[2]
+
+    # Unpacking the gauss params for the second Gaussian.
+    sigx2 = gauss2[0]
+    sigy2 = gauss2[1]
+    PA2 = gauss2[2]
+
+    if degrees:
+        PA1 = np.radians(PA1)
+        PA2 = np.radians(PA2)
+
+    # Calculating the Fourier abc params gauss1.
+    alpha1,beta1,gamma1 = gaussuv_sig2abc(sigx1,sigy1,PA1)
+
+    # Calculating the Fourier abc params for gauss2.
+    alpha2,beta2,gamma2 = gaussuv_sig2abc(sigx2,sigy2,PA2)
+
+    # Getting the convolved params.
+    sigxc,sigyc,PAc = gaussuv_abc2sig(alpha1+alpha2,beta1+beta2,gamma1+gamma2)
+
+    return sigxc,sigyc,PAc
+
+def deconv_gauss(gauss1,gauss2,degrees=True):
+    """
+    Calculates the analytic deconvolution of two Gaussians. Convention here, is 
+    that gauss1 is the psf/beam if used in this format.
+
+    Parameters:
+    ----------
+    gauss1 : list,tuple or ndarray
+        x axis coefficient.
+    gauss2 : list,tuple or ndarray
+        correlation coefficient.
+
+    Returns:
+    ----------
+    sigxdc : float
+        Gaussian major/sigma axis.
+    sigydc : float
+        Gaussian minor/sigma axis.
+    PAdc : float
+        Gaussian position angle in radians. 
+    """
+    # Unpacking the gauss params for the first Gaussian.
+    sigx1 = gauss1[0]
+    sigy1 = gauss1[1]
+    PA1 = gauss1[2]
+
+    # Unpacking the gauss params for the second Gaussian.
+    sigx2 = gauss2[0]
+    sigy2 = gauss2[1]
+    PA2 = gauss2[2]
+
+    if degrees:
+        PA1 = np.radians(PA1)
+        PA2 = np.radians(PA2)
+
+    # Calculating the Fourier abc params gauss1.
+    alpha1,beta1,gamma1 = gaussuv_sig2abc(sigx1,sigy1,PA1)
+
+    # Calculating the Fourier abc params for gauss2.
+    alpha2,beta2,gamma2 = gaussuv_sig2abc(sigx2,sigy2,PA2)
+
+    if np.any(alpha1 > alpha2):
+        errmsg = "alpha1 > alpha2, should be smaller for deconvolution."
+        print(errmsg)
+        #raise ValueError(errmsg)
+    
+    if np.any(gamma1 > gamma2):
+        errmsg = "gamma1 > gamma2, should be smaller for deconvolution."
+        print(errmsg) 
+        #raise ValueError(errmsg)
+
+    # Getting the deconvolved params.
+    sigxdc,sigydc,PAdc = gaussuv_abc2sig(alpha2-alpha1,
+                                         beta2-beta1,
+                                         gamma2-gamma1)
+
+    # If there is a nan deconvolution did not work. Set 
+    # sixe to zero.
+    sigxdc[np.isnan(sigxdc)] = 0
+    sigydc[np.isnan(sigydc)] = 0
+    
+
+    return sigxdc,sigydc,PAdc
+
