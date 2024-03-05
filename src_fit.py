@@ -74,6 +74,62 @@ def sig2FWHM(sig):
 
     return sig*(2*np.sqrt(2*np.log(2)))
 
+def majmin_swap(majVec,minVec,paVec,degrees=True):
+    """
+    Function for swapping the major and minor axes of a 2D Gaussian. This is 
+    necessary, because the major axis is defined in as the x-axis component of
+    the 2D Gaussian. This means that the smaller axis depending on the rotation
+    angle will often be swapped. This is fixed by swapping the axes and rotating
+    by 90 degrees.
+
+    Parameters:
+    ----------
+    majVec : ndarray
+        Major axis vector.
+    minVec : ndarray
+        Minor axis vector.
+    paVec : ndarray
+        Postion axis vector.
+    degrees : bool, default=True
+        If True paVec is in degrees.
+
+    Returns:
+    ----------
+    majVec : ndarray
+        Major axis vector.
+    minVec : ndarray
+        Minor axis vector.
+    paVec : ndarray
+        Postion axis vector.
+    """
+    
+    # Boolean vector where axes are swapped.
+    swapVec = majVec < minVec
+
+    if np.any(swapVec):
+        # Creating temp vectors from copied numpy arrays.
+        majVec_temp = np.copy(majVec)
+        minVec_temp = np.copy(minVec)
+        paVec_temp = np.copy(paVec)
+        
+        # Swapping axes.
+        majVec_temp[swapVec] = minVec[swapVec]
+        minVec_temp[swapVec] = majVec[swapVec]
+
+        # Performing the rotation.
+        if degrees:
+            # Default 
+            paVec_temp[swapVec] += 90 
+        else:
+            paVec_temp[swapVec] += np.pi/2
+
+        # Assigning the temp vectors to input maj and min vecs.
+        majVec = majVec_temp
+        minVec = minVec_temp
+        paVec = paVec_temp
+    
+    return majVec,minVec,paVec
+
 def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
     """
     Generalised 2DGaussian function.
