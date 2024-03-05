@@ -266,6 +266,15 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
     perr = np.array([np.sqrt(pcov[i,i]) \
                      for i in range(len(pcov))]).reshape(np.shape(pguess))
 
+    # Making sure the majore and minor axes are aligned properly.
+    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
+                                      degrees=False)
+    
+    # Reassigning values.
+    popt[:,3] = majVec
+    popt[:,4] = minVec
+    popt[:,5] = PAvec
+
     return popt,perr
 
 # // This function needs to be refactored. 
@@ -379,6 +388,16 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     else:
         popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
                 func=NGaussian2D)
+
+    # Making sure the major and the minor axes are oriented properly.
+    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
+                                    degrees=False)
+    
+    # Reassigning values.
+    popt[:,3] = majVec
+    popt[:,4] = minVec
+    popt[:,5] = PAvec
+
 
     return popt,perr
 
@@ -495,7 +514,18 @@ def fit_psf(xx,yy,data,coords,psf_params,
 
     # Getting the fit parameters, and their errors.
     popt,perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                               func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+                               func=NGaussian2D,pbound_low=pbound_low,
+                               pbound_up=pbound_up)
+
+    # Making sure the majore and minor axes are oriented properly.
+    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
+                                    degrees=False)
+    
+    # Reassigning values.
+    popt[:,3] = majVec
+    popt[:,4] = minVec
+    popt[:,5] = PAvec
+
 
     if N_gauss == 1:
         # Doesn't need to be 2D if only a single Gaussian.
@@ -726,7 +756,7 @@ def write_model_table(popt,perr,constants,alpha,SNR_ID,w,outname=None):
     return t
 
 
-
+#
 def model_select(params1,params2,perr1,perr2,xx,yy,data,rms):
     """
     Takes input parameters from two Gaussian fit models. Calculates the BIC for 
