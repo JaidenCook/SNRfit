@@ -234,7 +234,9 @@ def conv_gauss(gauss1,gauss2,degrees=True):
     alpha2,beta2,gamma2 = gaussuv_sig2abc(sigx2,sigy2,PA2)
 
     # Getting the convolved params.
-    sigxc,sigyc,PAc = gaussuv_abc2sig(alpha1+alpha2,beta1+beta2,gamma1+gamma2)
+    sigxc,sigyc,PAc = gaussuv_abc2sig(alpha1+alpha2,
+                                      beta1+beta2,
+                                      gamma1+gamma2)
 
     return sigxc,sigyc,PAc
 
@@ -293,7 +295,6 @@ def deconv_gauss(gauss1,gauss2,degrees=True):
     sigxdc,sigydc,PAdc = gaussuv_abc2sig(alpha2-alpha1,
                                          beta2-beta1,
                                          gamma2-gamma1)
-
     # If there is a nan deconvolution did not work. Set 
     # sixe to zero.
     sigxdc[np.isnan(sigxdc)] = 0
