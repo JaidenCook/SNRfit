@@ -757,7 +757,8 @@ def write_model_table(popt,perr,constants,alpha,SNR_ID,w,outname=None):
 
 
 #
-def model_select(params1,params2,perr1,perr2,xx,yy,data,rms):
+def model_select(params1,params2,xx,yy,data,
+                 rms=None,perr1=None,perr2=None,verbose=False):
     """
     Takes input parameters from two Gaussian fit models. Calculates the BIC for 
     each model and rejects the model with the higher BIC. This is usually the 
@@ -767,30 +768,40 @@ def model_select(params1,params2,perr1,perr2,xx,yy,data,rms):
     ----------
     params1 : numpy array
         1D/2D numpy array containing the model1 fit params for each Gaussian.
-    perr1 : numpy array
-        1D/2D numpy array containing the error model1 fit params for each 
-        Gaussian.
     params2 : numpy array
         1D/2D numpy array containing the model2 fit params for each Gaussian.
-    perr2 : numpy array
-        1D/2D numpy array containing the error model2 fit parameters for each 
-        Gaussian.
     xx : numpy array
         Array of x-values.
     yy : numpy array
         Array of y-values.
     data : numpy array
         Data for which to compare the models to.
-    rms : numpy array
+    rms : float, default=None
         Uncertainty in the data. Assumed to be constant.
+    perr1 : numpy array, default=None
+        1D/2D numpy array containing the error model1 fit params for each 
+        Gaussian.
+    perr2 : numpy array, default=None
+        1D/2D numpy array containing the error model2 fit parameters for each 
+        Gaussian.
+    verbose : bool, default=False
+        If True print additional information.
             
     Returns:
     ----------
     params : numpy array
         Selected parameter array.
-    perr : numpy array
+    perr : numpy array, default=None
         Selected parameter error array.
     """
+
+    if np.any(rms):
+        pass
+    else:
+        # If not given calculate from the input data. Result will likely be 
+        # biased.
+        from src_img import calc_img_bkg_rms
+        _,rms = calc_img_bkg_rms(data,plot_cond=True)
 
     # Calculating the chi squared and reduced chi squared values.
     chi1 = Fit_quality(data,params1.ravel(),xx,yy,rms)
@@ -810,17 +821,28 @@ def model_select(params1,params2,perr1,perr2,xx,yy,data,rms):
     # Calculating the Delta BIC value.
     dBIC = BIC_2 - BIC_1
 
+    if verbose:
+        print(f'BIC1 = {BIC_1:5.3f}')
+        print(f'BIC2 = {BIC_2:5.3f}')
+        print(f'dBIC = {dBIC:5.3f}')
+
+    perr = None
     if dBIC > 0.0:
         params = params1
-        perr = perr1
+        if np.any(perr1):
+            perr = perr1
     elif dBIC < 0.0:
         params = params2
-        perr = perr2
+        if np.any(perr2):
+            perr = perr2
     else:
         err_msg = 'Error calculating dBIC, cannot perform model selection.'
         raise ValueError(err_msg)
     
-    return params, perr
+    if np.any(perr):
+        return params, perr
+    else:
+        return params
 
 
 def Beam_solid_angle(major,minor):
