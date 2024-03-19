@@ -295,10 +295,21 @@ def deconv_gauss(gauss1,gauss2,degrees=True):
     sigxdc,sigydc,PAdc = gaussuv_abc2sig(alpha2-alpha1,
                                          beta2-beta1,
                                          gamma2-gamma1)
+    
     # If there is a nan deconvolution did not work. Set 
     # sixe to zero.
-    sigxdc[np.isnan(sigxdc)] = 0
-    sigydc[np.isnan(sigydc)] = 0
+    if isinstance(sigxdc,np.float64):
+        if np.isnan(sigxdc):
+            sigxdc = 0
+        if np.isnan(sigydc):
+            sigydc = 0
+        if (sigxdc == 0) and (sigydc == 0):
+            PAdc = 0
+    elif isinstance(sigxdc,np.ndarray):
+        sigxdc[np.isnan(sigxdc)] = 0
+        sigydc[np.isnan(sigydc)] = 0
+        # For Gaussians that are effectively point sources. Set PA to zero.
+        PAdc[np.isnan(sigxdc)*np.isnan(sigydc)] = 0
     
 
     return sigxdc,sigydc,PAdc
