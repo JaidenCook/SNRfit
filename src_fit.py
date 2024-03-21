@@ -216,9 +216,8 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
 
 # // This can be generalised to fit other functions shapelets etc.
 # // We can also generalise the fitting approach, MCMC etc.
-def Gaussian_2Dfit(xx,yy,data,pguess,
-                func=NGaussian2D,pbound_low=None,pbound_up=None,
-                maxfev=10000000):
+def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
+                   pbound_low=None,pbound_up=None,maxfev=10000000):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -241,6 +240,8 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
     func : function, default=NGaussian2D()
         Function which the parameters is supplied to. This function is fit to 
         the data.
+    sigma : numpy array, float, default=None
+        Either a single float or numpy array.
     pbound_low : numpy array, default=None
         Lower bound on the parameter ranges.
     pbound_up : numpy array, defaul=None
@@ -252,15 +253,18 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
         2D numpy array containing the best fit parameters.
     pcov : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
-    """
+    """  
+
     if np.any(pbound_low) and np.any(pbound_up):
         # If bounds supplied.
-        popt, pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                    bounds=(pbound_low.ravel(),pbound_up.ravel()),maxfev=maxfev)
+        popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
+                                  bounds=(pbound_low.ravel(),pbound_up.ravel()),
+                                  maxfev=maxfev,sigma=sigma)
+                                  #,method="dogbox"
     else:
         # If no bounds supplied.
         popt, pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                    maxfev=maxfev)
+                                   maxfev=maxfev)
     
     popt = popt.reshape(np.shape(pguess)) # Fit parameters.
     perr = np.array([np.sqrt(pcov[i,i]) \
@@ -279,7 +283,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,
 
 # // This function needs to be refactored. 
 def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  allow_negative=False,bounds=True):
+                  allow_negative=False,bounds=True,rms=None):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -303,6 +307,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         Contains the major and minor axis of the SNR in arcminutes.
     maj_frac : float, default=0.125
         Fractional size limit of fit Gaussians, as a fraction of the Major axis. 
+    rms : float, default=None,
+        If given calculate the covariance matrix.
             
     Returns:
     ----------
@@ -314,7 +320,7 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
     # Major and Minor axis in arcminutes of the SNR.
     major = constants[0]
-    minor = constants[1]
+    #minor = constants[1]
     dx = constants[2] #pixel size in degrees [deg]
 
     # Restoring beam parameters. Used in the guess.
@@ -324,13 +330,26 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     PA_psf = np.abs(np.radians(constants[5])) # [rads]
 
     # Restoring beam sizes in pixels:
-    sig_x_psf = FWHM2sig(a_psf/pixel_scale)
-    sig_y_psf = FWHM2sig(b_psf/pixel_scale)
+    sigxPSF = FWHM2sig(a_psf/pixel_scale)
+    sigyPSF = FWHM2sig(b_psf/pixel_scale)
 
-    print(sig_x_psf,sig_y_psf)
+    #if PA_psf > np.pi:
+    #    #PA_psf = PA_psf - np.pi
+    #    PA_psf = 2*np.pi - PA_psf
+
+    if np.any(rms):
+        # If given calculate the covariance matrix.
+        psfParams = [sigxPSF,sigyPSF,PA_psf]
+        sigma = calc_covMatrix(xx,yy,rms,psfParams)
+        print('Covariance matrix calculated...')
+    else:
+        sigma=None
+    
+    
 
     # PSF initial parameters. Used to determine pguess.
-    p0 = np.array([1,0,0,sig_x_psf,sig_y_psf,PA_psf])
+    p0 = np.array([1,0,0,sigxPSF,sigyPSF,PA_psf])
+    #p0 = np.array([1,0,0,sigxPSF,sigyPSF,0])
 
     # Parameter array dimensions.
     N_gauss = len(coords)
@@ -360,44 +379,36 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         if coords.shape[1] > 3:
             # peak intensity guess for the Gaussians.
 
-            # Set values less than 0 to be 1.
+            # Set values less than 0 to be 0.
             coords[:,3][coords[:,3] < 0] = 0
             pguess[:,0] = coords[:,3]
         else:
             pass
-        pguess[:,3][coords[:,2]>sig_x_psf] = coords[:,2][coords[:,2]>sig_x_psf]
-        pguess[:,4][coords[:,2]>sig_y_psf] = coords[:,2][coords[:,2]>sig_y_psf]
+        pguess[:,3][coords[:,2]>sigxPSF] = coords[:,2][coords[:,2]>sigxPSF]
+        pguess[:,4][coords[:,2]>sigyPSF] = coords[:,2][coords[:,2]>sigyPSF]
 
     # Specifying the lower fit bounds for each Gaussian.
     if allow_negative:
         # If true allow fitting negative peaks.
         # Template 1D array.
-        pbound_low = np.array([-np.inf,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) 
+        pbound_low = np.array([-np.inf,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
     else:
-        pbound_low = np.array([0.0,x_low,y_low,sig_x_psf,sig_y_psf,0.0]) 
+        pbound_low = np.array([0.0,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
 
     # Expanding for each Gaussian component.
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-    pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
+    #pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
+    pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
     if bounds:
         # Getting the fit parameters, and their errors.
-        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                func=NGaussian2D,pbound_low=pbound_low,pbound_up=pbound_up)
+        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
+                                    pbound_low=pbound_low,pbound_up=pbound_up,
+                                    sigma=sigma)
     else:
         popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                func=NGaussian2D)
-
-    # Making sure the major and the minor axes are oriented properly.
-    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
-                                    degrees=False)
-    
-    # Reassigning values.
-    popt[:,3] = majVec
-    popt[:,4] = minVec
-    popt[:,5] = PAvec
-
+                                    func=NGaussian2D,sigma=sigma)
 
     return popt,perr
 
@@ -517,15 +528,6 @@ def fit_psf(xx,yy,data,coords,psf_params,
                                func=NGaussian2D,pbound_low=pbound_low,
                                pbound_up=pbound_up)
 
-    # Making sure the majore and minor axes are oriented properly.
-    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
-                                    degrees=False)
-    
-    # Reassigning values.
-    popt[:,3] = majVec
-    popt[:,4] = minVec
-    popt[:,5] = PAvec
-
 
     if N_gauss == 1:
         # Doesn't need to be 2D if only a single Gaussian.
@@ -533,7 +535,6 @@ def fit_psf(xx,yy,data,coords,psf_params,
         perr = perr.flatten()
 
     return popt,perr
-
 
 
 def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
@@ -917,3 +918,48 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None):
         return x_vec,y_vec,Maj_pix,Min_pix
     else:
         return x_vec,y_vec
+
+def calc_covMatrix(xx,yy,rms,psfParams):
+    """
+    This function estimates the covariance matrix assuming the data is spatially
+    correlated with a 2D Gaussian function. 
+
+    Parameters:
+    ----------
+    xx : numpy array
+        Numpy array containing the x-positions for the data, should have 
+        dimension 1.
+    yy : numpy array 
+        Numpy array containing the y-positions for the data, should have 
+        dimension 1.
+    rms : float
+        Standard deviation of the data. Calculated from the background image.
+    psfParams : numpy array
+        List, tuple or numpy array containing the PSF params (sigx,sigy,pa). pa
+        is in radians.
+            
+    Returns:
+    ----------
+    covMat : numpy array
+        Covariance matrix (2D numpy array).
+    """
+
+    # Creating the col and row matrices for calculating the sx and dy offsets.
+    xxcol,xxrow = np.meshgrid(xx+1,xx+1)
+    yycol,yyrow = np.meshgrid(yy+1,yy+1)
+
+    # Getting the PSF parameters.
+    sigxpsf = psfParams[0]
+    sigypsf = psfParams[1]
+    PA = psfParams[2]
+
+    # Offset matrices for each position vector. Diagnonals are 0.
+    dxMat = xxcol-xxrow
+    dyMat = yycol-yyrow
+
+    # Calculating the covMat.
+    covMat = rms*Gaussian2D((dxMat,dyMat),1,0,0,sigxpsf,sigypsf,PA)
+    #covMat = rms*Gaussian2D((dyMat,dxMat),1,0,0,sigxpsf,sigypsf,PA)
+    
+
+    return covMat
