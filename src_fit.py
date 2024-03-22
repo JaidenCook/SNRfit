@@ -591,6 +591,7 @@ def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
         # Default option.
         return chisqd
 
+##TODO: Refactor input output functions.
 
 def J2000_name(RA,DEC,verbose=False):
     """
@@ -768,10 +769,9 @@ def write_model_table(popt,perr,constants,w,ID,
         Sint = Sint
 
         # Getting the Major and Minor axes.
-        Maj = popt[:,3]*(2*np.sqrt(2*np.log(2)))*(dx*60)*u.arcmin # [arcmins]
+        Maj = sig2FWHM(popt[:,3])*(dx*60)*u.arcmin # [arcmins]
         u_Maj = Maj*(perr[:,3]/popt[:,3]) # [arcmins]
-
-        Min = popt[:,4]*(2*np.sqrt(2*np.log(2)))*(dx*60)*u.arcmin # [arcmins]
+        Min = sig2FWHM(popt[:,4])*(dx*60)*u.arcmin # [arcmins]
         u_Min = Min*(perr[:,4]/popt[:,4]) # [arcmins]
 
         PA = np.degrees(popt[:,5])*u.deg # [deg]
@@ -790,16 +790,28 @@ def write_model_table(popt,perr,constants,w,ID,
             sigypsf_pix = FWHM2sig(b_psf)/dx
             BPA = constants[-1]
             theta_PA = 360 - (BPA + 90)
-            Maj_DC,Min_DC,PA_DC = deconv((sigxpsf_pix,sigypsf_pix,theta_PA),
-                                         (popt[:,3],popt[:,4],PA)) 
+            Maj_DC,Min_DC,PA_DC = deconv_gauss((sigxpsf_pix,sigypsf_pix,theta_PA),
+                                               (popt[:,3],popt[:,4],np.degrees(popt[:,5]))) 
             
+            # Converting the DC Major and Minor axes.
+            Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
+            Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
+            PA_DC = np.degrees(PA_DC)*u.deg # [deg]
+
             # Appending to the proto_table.
             proto_table.append(np.round(Maj_DC,3))
             proto_table.append(np.round(Min_DC,3))
             proto_table.append(np.round(PA_DC,3))
+            # Add the PSF params so you can check the deconvolution.
+            proto_table.append(np.round(np.ones(RA.size)*a_psf*60,3)*u.arcmin)
+            proto_table.append(np.round(np.ones(RA.size)*b_psf*60,3)*u.arcmin)
+            proto_table.append(np.round(np.ones(RA.size)*theta_PA,3)*u.deg)
             col_names.append('Maj_DC')
             col_names.append('Min_DC')
             col_names.append('PA_DC')
+            col_names.append('Maj_PSF')
+            col_names.append('Min_PSF')
+            col_names.append('PA_PSF')
 
         if np.any(alpha):
             proto_table.append(alpha)
@@ -857,16 +869,29 @@ def write_model_table(popt,perr,constants,w,ID,
             sigypsf_pix = FWHM2sig(b_psf)/dx
             BPA = constants[-1]
             theta_PA = 360 - (BPA + 90)
-            Maj_DC,Min_DC,PA_DC = deconv((sigxpsf_pix,sigypsf_pix,theta_PA),
-                                         (popt[:,3],popt[:,4],PA)) 
+
+            Maj_DC,Min_DC,PA_DC = deconv_gauss((sigxpsf_pix,sigypsf_pix,theta_PA),
+                                               (popt[3],popt[4],np.degrees(popt[5])))
             
+            # Converting the DC Major and Minor axes.
+            Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
+            Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
+            PA_DC = np.degrees(PA_DC)*u.deg # [deg]
+
             # Appending to the proto_table.
             proto_table.append([np.round(Maj_DC,3)])
             proto_table.append([np.round(Min_DC,3)])
             proto_table.append([np.round(PA_DC,3)])
+            # Add the PSF params so you can check the deconvolution.
+            proto_table.append([np.round(a_psf*60,3)*u.arcmin])
+            proto_table.append([np.round(b_psf*60,3)*u.arcmin])
+            proto_table.append([np.round(theta_PA,3)*u.deg])
             col_names.append('Maj_DC')
             col_names.append('Min_DC')
             col_names.append('PA_DC')
+            col_names.append('Maj_PSF')
+            col_names.append('Min_PSF')
+            col_names.append('PA_PSF')
 
         if np.any(alpha):
             proto_table.append([alpha])
