@@ -159,7 +159,7 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,
         return bkg,rms
 
 
-def calc_footprint(a,b,pa):
+def calc_footprint(a,b,pa,Naxis=None,thresh=0.25):
     """
     If given then calculate the footprint. The footprint is 
     the PSF.
@@ -172,6 +172,11 @@ def calc_footprint(a,b,pa):
         Gaussian mino axis. in Pixel units.
     pa : float
         Position angle in units of degrees.
+    Naxis : int, default=None
+        Image size. If not given determined from the maj and min. Assuming
+        image is square.
+    thresh : float, default=0.25
+        Footprint threshold, make smaller to increase footprint.
 
     Returns:
     ----------
@@ -179,11 +184,17 @@ def calc_footprint(a,b,pa):
         2D numpy array containing 1 where the footprint is and zero elsewhere.
     """
     
-    # Determined by the input variables.
-    Naxis = np.rint(a + b).astype(int)
+    if np.any(Naxis):
+        # If given, Naxis is assigned. 
+        if Naxis < np.rint(a + b).astype(int):
+            # Check given Naxis is large enough.
+            Naxis = np.rint(a + b).astype(int)
+    else:
+        # Determined by the input variables.
+        Naxis = np.rint(a + b).astype(int)
 
-    if Naxis % 2 == 0:
-        Naxis += 1
+        if Naxis % 2 == 0:
+            Naxis += 1
         
     xx_psf,yy_psf = np.mgrid[0:Naxis,0:Naxis]
 
@@ -202,8 +213,8 @@ def calc_footprint(a,b,pa):
                             FWHM2sig(b), pa)
     
     # Setting the footprint values.
-    footprint[footprint >= 0.25] = 1.
-    footprint[footprint < 0.25] = 0
+    footprint[footprint >= thresh] = 1.
+    footprint[footprint < thresh] = 0
 
     return footprint
 
