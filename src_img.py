@@ -531,11 +531,14 @@ def generate_correlated_noise(std,psf_params,img_dims,
         return img_correlated_noise
 
 
-def determine_peaks_bkg(image_nu,constants,maj_fac=1,num_sigma=20,
-            thresh_fac=1,overlap=1,log_cond=False,threshold_rel=None):
+def determine_peaks_bkg(image_nu,constants,
+                        maj_fac=1,num_sigma=20,thresh_fac=1,overlap=1,
+                        log_cond=False,threshold_rel=None):
     """
     Determines the number of peaks, their locations, sizes and amplitudes for an
     input image. Builds the core of the model parameter guess.
+
+    ## TODO We can use two sigmas, experiment with this.
     
     Parameters
     ----------
