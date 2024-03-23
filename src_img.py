@@ -278,6 +278,53 @@ def footprint_mask(img,coords,footprint,verbose=False):
 
     return mask
 
+def create_model_mask(imgShape,popt,
+                      thresh=0.375,plotcond=False):
+    """
+    Take an input model and create a mask.
+
+    Parameters:
+    ----------
+    imgShape : tuple
+        Tuple for the input image size. 
+    popt : float
+        Gaussian model popt = [[amp,x0,y0,sigx,sigy,pa]], where
+        sigx and sigy are in pixel coordinates, and pa is in radians.
+    thresh : float, default=0.375
+        Footprint threshold, make smaller to increase footprint.
+    plotcond : bool, default=False
+        Plot the mask image.
+
+    Returns:
+    ----------
+    maskImg : numpy array, int
+        2D numpy array containing 1 where the footprint is and zero elsewhere.
+    """
+    from src_fit import sig2FWHM
+    
+    # Initialise the mask image. 
+    maskImg = np.zeros(imgShape)
+    for i,pa in enumerate(popt[:,5]):
+        
+        # Calculating the footprint.
+        footprint = calc_footprint(sig2FWHM(popt[i,3]),sig2FWHM(popt[i,4]),pa,
+                                   thresh=thresh)
+
+        # Calculating the temporary mask.
+        mask = footprint_mask(maskImg,(popt[i,2],popt[i,1]),footprint)
+
+        # Adding the temporary mask.
+        maskImg += mask
+
+    # Creating the mask.
+    maskImg[maskImg > 0] = 1
+
+    # Check the mask by plotting.
+    if plotcond:
+        #
+        astro_plot_2D(maskImg, w, figsize=(7.5,6),scale=0.75,ellipes=popt)
+
+    return maskImg.astype(int)
 
 def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
                 flood=True,**kwargs):
