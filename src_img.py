@@ -322,7 +322,7 @@ def create_model_mask(imgShape,popt,
     # Check the mask by plotting.
     if np.any(wcs):
         #
-        astro_plot_2D(maskImg, wcs, figsize=(7.5,6),scale=0.75,ellipes=popt)
+        astro_plot_2D(maskImg, wcs, figsize=(7.5,6),scale=0.6,ellipes=popt)
 
     return maskImg.astype(int)
 
