@@ -254,17 +254,18 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
     pcov : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
     """  
-
+    from numpy.linalg import LinAlgError 
     if np.any(pbound_low) and np.any(pbound_up):
         # If bounds supplied.
         popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                                  bounds=(pbound_low.ravel(),pbound_up.ravel()),
-                                  maxfev=maxfev,sigma=sigma)
-                                  #,method="dogbox"
+                                bounds=(pbound_low.ravel(),pbound_up.ravel()),
+                                maxfev=maxfev,sigma=sigma)
+                                #,method="dogbox"
     else:
         # If no bounds supplied.
         popt, pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                                   maxfev=maxfev)
+                                maxfev=maxfev,sigma=sigma)
+
     
     popt = popt.reshape(np.shape(pguess)) # Fit parameters.
     perr = np.array([np.sqrt(pcov[i,i]) \
@@ -345,8 +346,6 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     else:
         sigma=None
     
-    
-
     # PSF initial parameters. Used to determine pguess.
     p0 = np.array([1,0,0,sigxPSF,sigyPSF,PA_psf])
     #p0 = np.array([1,0,0,sigxPSF,sigyPSF,0])
@@ -393,12 +392,15 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         # Template 1D array.
         pbound_low = np.array([-np.inf,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
     else:
-        pbound_low = np.array([0.0,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
+        #pbound_low = np.array([0.0,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
+        pbound_low = np.array([0.0,x_low+sigxPSF/2,y_low+sigxPSF/2,
+                               sigxPSF,sigyPSF,0.0]) 
 
     # Expanding for each Gaussian component.
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-    #pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,np.pi])
-    pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,2*np.pi])
+    #pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,2*np.pi])
+    pbound_up = np.array([np.inf,x_hi-sigxPSF/2,y_hi-sigxPSF/2,
+                          Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
     if bounds:
@@ -592,7 +594,6 @@ def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
         return chisqd
 
 ##TODO: Refactor input output functions.
-
 def J2000_name(RA,DEC,verbose=False):
     """
     Function that converts the source RA and DEC into a JRA+-DEC name format.
@@ -622,7 +623,6 @@ def J2000_name(RA,DEC,verbose=False):
         string : str
             String.
         
-                
         Returns:
         ----------
         string : str
@@ -755,7 +755,7 @@ def write_model_table(popt,perr,constants,w,ID,
         RA = RA*u.degree # FK5 [deg]
 
         #
-        u_DEC = DEC*(u_Y/Y_pos)*u.degree # FK5 [deg]
+        u_DEC = np.abs(DEC*u_Y/Y_pos)*u.degree # FK5 [deg]
         DEC = DEC*u.degree # FK5 [deg]
 
         # Model ID associates model components with one source.
@@ -774,7 +774,8 @@ def write_model_table(popt,perr,constants,w,ID,
         Min = sig2FWHM(popt[:,4])*(dx*60)*u.arcmin # [arcmins]
         u_Min = Min*(perr[:,4]/popt[:,4]) # [arcmins]
 
-        PA = np.degrees(popt[:,5])*u.deg # [deg]
+        # Rotate the position angle so it matches the cosmological ref frame.
+        PA = (270 - np.degrees(popt[:,5]))*u.deg # [deg]
         u_PA = (perr[:,5])*u.deg # [deg]
 
         # Constructing the table list structure. Rounding for formatting.
@@ -796,7 +797,8 @@ def write_model_table(popt,perr,constants,w,ID,
             # Converting the DC Major and Minor axes.
             Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
             Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
-            PA_DC = np.degrees(PA_DC)*u.deg # [deg]
+            # Rotate the position angle so it matches the cosmological ref frame.
+            PA_DC = (270 - np.degrees(PA_DC))*u.deg # [deg]
 
             # Appending to the proto_table.
             proto_table.append(np.round(Maj_DC,3))
@@ -805,7 +807,7 @@ def write_model_table(popt,perr,constants,w,ID,
             # Add the PSF params so you can check the deconvolution.
             proto_table.append(np.round(np.ones(RA.size)*a_psf*60,3)*u.arcmin)
             proto_table.append(np.round(np.ones(RA.size)*b_psf*60,3)*u.arcmin)
-            proto_table.append(np.round(np.ones(RA.size)*theta_PA,3)*u.deg)
+            proto_table.append(np.round(np.ones(RA.size)*BPA,3)*u.deg)
             col_names.append('Maj_DC')
             col_names.append('Min_DC')
             col_names.append('PA_DC')
@@ -853,7 +855,9 @@ def write_model_table(popt,perr,constants,w,ID,
         Min = popt[4]*(2*np.sqrt(2*np.log(2)))*(dx*60)*u.arcmin # [arcmins]
         u_Min = Min*(perr[4]/popt[4]) # [arcmins]
 
-        PA = np.degrees(popt[5])*u.deg # [deg]
+        # Rotate the position angle so it matches the cosmological ref frame.
+        #PA = np.degrees(popt[5])*u.deg # [deg]
+        PA = (270 - np.degrees(popt[5]))*u.deg # [deg]
         u_PA = (perr[5])*u.deg # [deg]
 
         # Constructing the table list structure.
@@ -876,7 +880,9 @@ def write_model_table(popt,perr,constants,w,ID,
             # Converting the DC Major and Minor axes.
             Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
             Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
-            PA_DC = np.degrees(PA_DC)*u.deg # [deg]
+            # Rotate the position angle so it matches the cosmological ref frame.
+            #PA_DC = np.degrees(PA_DC)*u.deg # [deg]
+            PA_DC = (270 - np.degrees(PA_DC))*u.deg # [deg]
 
             # Appending to the proto_table.
             proto_table.append([np.round(Maj_DC,3)])
@@ -1015,7 +1021,7 @@ def Beam_solid_angle(major,minor):
 
     return np.pi*major*minor/(4*np.log(2))
 
-def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None):
+def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
     """
     Calcuates the pixel coordinates for an input wcs and RA and DEC array. 
     Converts, the major and minor axis values of Gaussian fits to pixel values.
@@ -1036,6 +1042,8 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None):
         Array of Major axis sizes (in degrees).
     Min : numpy array
         Array of Minor axis sizes (in degrees).
+    pixoffset : float, default=1
+        If pyBDSF grid set to 1, if SNRFIT set 0.
             
     Returns:
     ----------
@@ -1060,7 +1068,7 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None):
                     'Check FITS header.'
             raise KeyError(err_msg)
 
-    x_vec, y_vec = w.wcs_world2pix(RA,DEC, 1)
+    x_vec, y_vec = w.wcs_world2pix(RA,DEC,pixoffset)
 
     if np.any(Maj) and np.any(Min):
         Maj_pix = Maj/dx
@@ -1110,8 +1118,8 @@ def calc_covMatrix(xx,yy,rms,psfParams):
     dxMat = xxcol-xxrow
     dyMat = yycol-yyrow
 
-    # Calculating the covMat.
-    #covMat = (Gaussian2D((dxMat,dyMat),rms,0,0,sigxpsf,sigypsf,PA))**2
-    covMat = (rms**2)*(Gaussian2D((dxMat,dyMat),1,0,0,sigxpsf,sigypsf,PA))
+    # Having issues with singular matrices.
+    gaussMat = (Gaussian2D((dxMat,dyMat),1,0,0,sigxpsf,sigypsf,PA))**2
+    covMat = (rms**2)*gaussMat
 
     return covMat
