@@ -74,7 +74,7 @@ def sig2FWHM(sig):
 
     return sig*(2*np.sqrt(2*np.log(2)))
 
-def majmin_swap(majVec,minVec,paVec,degrees=True):
+def majmin_swap(popt,pcov,degrees=True):
     """
     Function for swapping the major and minor axes of a 2D Gaussian. This is 
     necessary, because the major axis is defined in as the x-axis component of
@@ -104,17 +104,18 @@ def majmin_swap(majVec,minVec,paVec,degrees=True):
     """
     
     # Boolean vector where axes are swapped.
-    swapVec = majVec < minVec
+    swapVec = popt[:,3] < popt[:,4]
+
 
     if np.any(swapVec):
         # Creating temp vectors from copied numpy arrays.
-        majVec_temp = np.copy(majVec)
-        minVec_temp = np.copy(minVec)
-        paVec_temp = np.copy(paVec)
+        majVec_temp = np.copy(popt[:,3])
+        minVec_temp = np.copy(popt[:,4])
+        paVec_temp = np.copy(popt[:,5])
         
         # Swapping axes.
-        majVec_temp[swapVec] = minVec[swapVec]
-        minVec_temp[swapVec] = majVec[swapVec]
+        majVec_temp[swapVec] = popt[:,4][swapVec]
+        minVec_temp[swapVec] = popt[:,3][swapVec]
 
         # Performing the rotation.
         if degrees:
@@ -124,11 +125,31 @@ def majmin_swap(majVec,minVec,paVec,degrees=True):
             paVec_temp[swapVec] += np.pi/2
 
         # Assigning the temp vectors to input maj and min vecs.
-        majVec = majVec_temp
-        minVec = minVec_temp
-        paVec = paVec_temp
+        popt[:,3] = majVec_temp
+        popt[:,4] = minVec_temp
+        popt[:,5] = paVec_temp
     
-    return majVec,minVec,paVec
+    if pcov.shape[0] != pcov.shape[1]:
+        # If only the errors given.
+        e_majVec_temp = np.copy(pcov[:,3])
+        e_minVec_temp = np.copy(pcov[:,4])
+        
+        # Swapping axes.
+        e_majVec_temp[swapVec] = pcov[:,4][swapVec]
+        e_minVec_temp[swapVec] = pcov[:,3][swapVec]
+
+        # Assigning the temp vectors to input maj and min vecs.
+        pcov[:,3] = majVec_temp
+        pcov[:,4] = minVec_temp
+    
+    elif pcov.shape[0] == pcov.shape[1]:
+        # If the full covariance matrix is given.
+        indVec = np.arange(popt.size)
+        xindArr,yindArr = np.meshgrid(indVec,indVec)
+
+        pcov = pcov[xindArr,yindArr]
+
+    return popt,pcov
 
 def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
     """
@@ -213,11 +234,9 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
     else:
         return zz
 
-
-# // This can be generalised to fit other functions shapelets etc.
-# // We can also generalise the fitting approach, MCMC etc.
 def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
-                   pbound_low=None,pbound_up=None,maxfev=10000000):
+                   pbound_low=None,pbound_up=None,
+                   maxfev=10000000):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -244,17 +263,17 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
         Either a single float or numpy array.
     pbound_low : numpy array, default=None
         Lower bound on the parameter ranges.
-    pbound_up : numpy array, defaul=None
-        
+    pbound_up : numpy array, default=None
+        Upper bound on the parameter ranges.
             
     Returns:
     ----------
     popt : numpy array
         2D numpy array containing the best fit parameters.
-    pcov : numpy array
+    perr : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
     """  
-    from numpy.linalg import LinAlgError 
+    
     if np.any(pbound_low) and np.any(pbound_up):
         # If bounds supplied.
         popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
@@ -268,23 +287,15 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
     
     popt = popt.reshape(np.shape(pguess)) # Fit parameters.
-    perr = np.array([np.sqrt(pcov[i,i]) \
-                     for i in range(len(pcov))]).reshape(np.shape(pguess))
-
-    # Making sure the majore and minor axes are aligned properly.
-    majVec,minVec,PAvec = majmin_swap(popt[:,3],popt[:,4],popt[:,5],
-                                      degrees=False)
     
-    # Reassigning values.
-    popt[:,3] = majVec
-    popt[:,4] = minVec
-    popt[:,5] = PAvec
+    popt,pcov = majmin_swap(popt,pcov,degrees=False)
 
-    return popt,perr
+    return popt,pcov
+    
 
 # // This function needs to be refactored. 
 def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  allow_negative=False,bounds=True,rms=None):
+                  allow_negative=False,bounds=True,rms=None,covcond=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -310,13 +321,17 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         Fractional size limit of fit Gaussians, as a fraction of the Major axis. 
     rms : float, default=None,
         If given calculate the covariance matrix.
+    covcond : bool, default=False
+        If True return the covariance matrix.
             
     Returns:
     ----------
     popt : numpy array
         2D numpy array containing the best fit parameters.
-    pcov : numpy array
+    perr : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
+    pcov : numpy array, optional
+        2D covariance matrix returned by scipy.curve_fit().
     """
 
     # Major and Minor axis in arcminutes of the SNR.
@@ -334,10 +349,6 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     sigxPSF = FWHM2sig(a_psf/pixel_scale)
     sigyPSF = FWHM2sig(b_psf/pixel_scale)
 
-    #if PA_psf > np.pi:
-    #    #PA_psf = PA_psf - np.pi
-    #    PA_psf = 2*np.pi - PA_psf
-
     if np.any(rms):
         # If given calculate the covariance matrix.
         psfParams = [sigxPSF,sigyPSF,PA_psf]
@@ -348,7 +359,6 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     
     # PSF initial parameters. Used to determine pguess.
     p0 = np.array([1,0,0,sigxPSF,sigyPSF,PA_psf])
-    #p0 = np.array([1,0,0,sigxPSF,sigyPSF,0])
 
     # Parameter array dimensions.
     N_gauss = len(coords)
@@ -405,14 +415,18 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
     if bounds:
         # Getting the fit parameters, and their errors.
-        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
+        popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
                                     pbound_low=pbound_low,pbound_up=pbound_up,
-                                    sigma=sigma)
+                                    sigma=sigma,covcond=covcond)
     else:
-        popt, perr = Gaussian_2Dfit(xx,yy,data,pguess,
-                                    func=NGaussian2D,sigma=sigma)
+        popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,
+                                    func=NGaussian2D,sigma=sigma,
+                                    covcond=covcond)
+    
+    if covcond:
+        pcov = np.sqrt(np.diag(pcov)).reshape(np.shape(pguess))
 
-    return popt,perr
+    return popt,pcov
 
 
 # // This function needs to be refactored. 
@@ -529,7 +543,6 @@ def fit_psf(xx,yy,data,coords,psf_params,
     popt,perr = Gaussian_2Dfit(xx,yy,data,pguess,
                                func=NGaussian2D,pbound_low=pbound_low,
                                pbound_up=pbound_up)
-
 
     if N_gauss == 1:
         # Doesn't need to be 2D if only a single Gaussian.
@@ -670,7 +683,8 @@ def J2000_name(RA,DEC,verbose=False):
         J2000_names[i] = J2000_name
 
         if verbose:
-            # For comparision check the names are formatted to the actual coordinates.
+            # For comparision check the names are formatted to the actual 
+            # coordinates.
             print(J2000_name,coords.to_string('hmsdms')[i])
 
     return J2000_names
@@ -703,8 +717,7 @@ def write_model_table(popt,perr,constants,w,ID,
         models.
     outname : str
         Output filename. Default is None, if given writes an astropy fits file.
-
-    
+  
     Returns:
     ----------
     t : astropy object
@@ -718,7 +731,7 @@ def write_model_table(popt,perr,constants,w,ID,
     # Defining the conversion factor. Calculating the integrated flux density.
     a_psf = constants[3] # [deg]
     b_psf = constants[4] # [deg]
-    dx = constants[2] #pixel size in degrees [deg]
+    dx = constants[2] # pixel size in degrees [deg]
 
     # Calculating the pixel and beam solid angles.
     Omega_pix = dx**2 #[deg^2]
