@@ -295,7 +295,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
 # // This function needs to be refactored. 
 def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  allow_negative=False,bounds=True,rms=None,covcond=False):
+                  allow_negative=False,bounds=True,rms=None,perrcond=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -321,8 +321,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         Fractional size limit of fit Gaussians, as a fraction of the Major axis. 
     rms : float, default=None,
         If given calculate the covariance matrix.
-    covcond : bool, default=False
-        If True return the covariance matrix.
+    perrcond : bool, default=True
+        If False return the full covariance matrix.
             
     Returns:
     ----------
@@ -417,13 +417,12 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         # Getting the fit parameters, and their errors.
         popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
                                     pbound_low=pbound_low,pbound_up=pbound_up,
-                                    sigma=sigma,covcond=covcond)
+                                    sigma=sigma)
     else:
         popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,
-                                    func=NGaussian2D,sigma=sigma,
-                                    covcond=covcond)
+                                    func=NGaussian2D,sigma=sigma)
     
-    if covcond:
+    if perrcond:
         pcov = np.sqrt(np.diag(pcov)).reshape(np.shape(pguess))
 
     return popt,pcov
