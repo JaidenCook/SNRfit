@@ -394,7 +394,7 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
     popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
                                 bounds=(pbound_low,pbound_up),
                                 maxfev=maxfev,sigma=sigma)
-    print(np.linalg.cond(pcov))
+    
     if perrcond:
         pcov = np.sqrt(np.diag(pcov))
 
