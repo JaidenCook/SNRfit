@@ -330,15 +330,10 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     return popt,pcov
 
 
-# // This function needs to be refactored. 
-def fit_psf(xx,yy,data,coords,psf_params,
-            bounds=True,peak_fit=False,perrcond=True):
+def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
+            maxfev=int(1e7)):
     """
-    Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
-    function using scipy.optimise.curve_fit(), which uses a non-linear least 
-    squares method. In future this function should be refactored, especially if 
-    we want to consider using different fitting methods such as a Bayesian 
-    approach.    
+    Function for fitting the amplitude of a Gaussian and no other parameters.
 
     Parameters:
     ----------
@@ -348,116 +343,62 @@ def fit_psf(xx,yy,data,coords,psf_params,
         Numpy array containing the y-positions for the data, should have dim 1.
     data : numpy array
         Numpy array containing the image data, should have dimensions 1.
-    coords : numpy array
-        Gaussian component x,y position array, has dimension 2.
-    psf_params : tuple
-        Contains the PSF parameters in pixel coords, specifically the sigx, sigy
-        and the position angle (pa) in radians.
-    bounds : bool, default=True
-        If True fit with boundary conditions. Turn off if answers are infeasible.
-    peak_fit : bool, default=False
-        If True only fit the amplitude. Effectively make the bounds on the other
-        parameters small. By defualt sets bounds True if set to False.
+    params : numpy array
+        Gaussian parameters.
+    rms : float, default=None
+        Rms noise in the data.
+    psfParams : list, or tuple:
+        Contains the PSF parameters, used to calculate the data covariance 
+        matrix.
     perrcond : bool, default=True
         If False return the full covariance matrix.
+    maxfev : int, default=int(1e7)
+        Maximum number of function calls to scipy curve fit.
             
     Returns:
     ----------
     popt : numpy array
         2D numpy array containing the best fit parameters.
-    perr : numpy array
+    pcov : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
     """
-    # Getting the PSF params.
-    sigx, sigy, pa = psf_params
 
-    # PSF initial parameters. Used to determine pguess.
-    p0 = np.array([1,0,0,sigx,sigy,pa])# Template inital parameter array.
+    ampguess = params[:,0]
+    x0Vec = params[:,1]
+    y0Vec = params[:,2]
+    sigxVec = params[:,3]
+    sigyVec = params[:,4]
+    PAVEC = params[:,5]
+    xdata_tuple = (xx.ravel(),yy.ravel())
 
-    # Parameter array dimensions. 
-    # This will cause problems if I only fit a single source. 
-    if len(coords.shape) > 1:
-    #if coords.shape[-1] > 1:
-        # If more than one Gaussian is to be fit.
-        N_gauss = len(coords)
-    else:
-        # Case where only one Gaussian is to be fit.
-        coords = np.array([coords])
-        N_gauss = 1
-
-    # Number of parameters.
-    N_params = len(p0)
-
-    if peak_fit:
-        bounds = True
-
-    if bounds:
-        # Defining the min and max peak x location limits.
-        x_low = np.nanmin(xx)
-        x_hi = np.nanmax(xx)
-
-        # Defining the min and max peak y location limits.
-        y_low = np.nanmin(yy)
-        y_hi = np.nanmax(yy)
-
-        # Template lower bound.
-        epsilon = 1e-3
-        theta_eps = 1e-6
-        pbound_low = np.array([0.0,x_low,y_low,
-                            sigx - epsilon*sigx,
-                            sigy - epsilon*sigy,
-                            pa - theta_eps]) 
-        # Template upper bound.
-        pbound_up = np.array([np.inf,x_hi,y_hi,
-                            sigx + epsilon*sigx,
-                            sigy + epsilon*sigy,
-                            pa + theta_eps])
-
+    def NDGauss_amp(xdata_tuple,*ampVec):
         
-        # Expanding for each Gaussian component.
-        #if N_gauss > 1:
-            # If there is more than one Gaussian to fit. 
-            #pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-            #pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
+        zz = np.zeros(np.shape(xx))
+        for i,Speak in enumerate(ampVec):
+            zz += Gaussian2D(xdata_tuple,Speak,x0Vec[i],y0Vec[i],sigxVec[i],
+                             sigyVec[i],PAVEC[i])
+        return zz
+    
+    pbound_low = np.zeros(ampguess.size)
+    pbound_up = np.ones(ampguess.size)*np.inf
 
-        pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-        pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
-
-        if peak_fit:
-            # Setting the peak position bounds to be restricted to inputs.
-            pbound_low[:,1] = coords[:,1] - epsilon
-            pbound_low[:,2] = coords[:,0] - epsilon
-
-            pbound_up[:,1] = coords[:,1] + epsilon
-            pbound_up[:,2] = coords[:,0] + epsilon
-
+    if np.any(rms):
+        if np.any(psfParams):
+            sigma = calc_covMatrix(xx,yy,rms,psfParams)
+            print('Calculated the covariance matrix...')
+        else:
+            sigma = np.ones(data.size)*rms
     else:
-        pbound_low = None
-        pbound_up = None
+        sigma=None
 
-    # The guess parameter array.
-    pguess = np.ones((N_gauss,N_params))*p0[None,:]
-
-    # Assigning initial positions.
-    pguess[:,1] = coords[:,1] # x-coord
-    pguess[:,2] = coords[:,0] # y-coord
-
-    # Getting the fit parameters, and their errors.
-    popt,pcov = Gaussian_2Dfit(xx,yy,data,pguess,
-                               func=NGaussian2D,pbound_low=pbound_low,
-                               pbound_up=pbound_up)
-
-    if N_gauss == 1:
-        # Doesn't need to be 2D if only a single Gaussian.
-        popt = popt.flatten()
-        if perrcond:
-            pcov = np.sqrt(np.diag(pcov))
-    else:
-        if perrcond:
-            pcov = np.sqrt(np.diag(pcov)).reshape(pguess.shape)
+    popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
+                                bounds=(pbound_low,pbound_up),
+                                maxfev=maxfev,sigma=sigma)
+    print(np.linalg.cond(pcov))
+    if perrcond:
+        pcov = np.sqrt(np.diag(pcov))
 
     return popt,pcov
-
 
 def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
     """
