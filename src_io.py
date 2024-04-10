@@ -29,6 +29,7 @@ from astropy.table import Table
 from astropy.io.votable import writeto as writetoVO
 from astropy.wcs import WCS
 
+from functions import *
 
 ##TODO: Refactor input output functions.
 def J2000_name(RA,DEC,verbose=False):
