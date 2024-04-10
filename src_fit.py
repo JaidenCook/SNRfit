@@ -57,22 +57,7 @@ from astropy.wcs import WCS
 # Image processing packages:
 from skimage.feature import blob_dog, blob_log
 
-
-def FWHM2sig(FWHM):
-    """
-    I'm tired of doing this manually here is a function
-    to convert from FWHM to sigma. Units don't matter.
-    """ 
-
-    return FWHM/(2*np.sqrt(2*np.log(2)))
-
-def sig2FWHM(sig):
-    """
-    I'm tired of doing this manually here is a function
-    to convert from FWHM to sigma. Units don't matter.
-    """ 
-
-    return sig*(2*np.sqrt(2*np.log(2)))
+from functions import *
 
 def majmin_swap(popt,pcov,degrees=True):
     """
@@ -151,89 +136,6 @@ def majmin_swap(popt,pcov,degrees=True):
 
     return popt,pcov
 
-def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
-    """
-    Generalised 2DGaussian function.
-    
-    Parameters:
-    ----------
-    xdata_Tuple : tuple
-        Tuple containing the X-data and Y-data arrays.
-    amplitude : float
-        Gaussian amplitude.
-    x0 : float
-        Gaussian peak x-cooridinate.
-    y0 : float
-        Gaussian peak y-cooridinate.
-    sigma_x : float
-        2D Gaussian x width.
-    sigma_y : float
-        2D Gaussian y width.
-    theta : float
-        2D Gaussian position angle. In radians.
-            
-    Returns:
-    ----------
-    g : numpy array
-        2D numpy array, the N_Gaussian image.
-    """
-    
-    (x,y) = xdata_tuple
-    x0 = float(x0)
-    y0 = float(y0)
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = amplitude*np.exp(-(a*((x-x0)**2) + 2*b*(x-x0)*(y-y0) + c*((y-y0)**2)))
-
-    return g
-
-## Gaussian and fitting functions.
-def NGaussian2D(xdata_tuple, *params, fit=True):
-    """
-    Generalised 2DGaussian function, used primarily for fitting Gaussians to 
-    islands. Also used to create N-component Gaussian model images. 
-    
-    Parameters:
-    ----------
-    xdata_Tuple : tuple
-        Tuple containing the X-data and Y-data arrays.
-    params : numpy array
-        Array of the Gaussian parameters, should be 6*N_Guassians. 1 dimension.
-            
-    Returns:
-    ----------
-    zz : numpy array
-        2D numpy array, the N_Gaussian image.
-    """
-    
-    # Initialising the data array.
-    (x,y) = xdata_tuple
-    zz = np.zeros(np.shape(x))
-
-    if fit == False:
-        params = params[0]
-    else:
-        pass
-    
-    # Looping through all the Gaussians. Parameter array has to be 1D, 
-    # each Gaussian parameter set separated by 6 places in the list.
-    for i in range(0, len(params), 6):
-        amp_temp = params[i]
-        x0_temp = params[i + 1]
-        y0_temp = params[i + 2]
-        sigx_temp = params[i + 3]
-        sigy_temp = params[i + 4]
-        theta_temp = params[i + 5]
-
-        zz = zz + Gaussian2D(xdata_tuple, amp_temp, x0_temp, y0_temp, 
-                                sigx_temp, sigy_temp, theta_temp)
-
-    if fit:
-        return zz.ravel()
-    else:
-        return zz
-
 def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
                    pbound_low=None,pbound_up=None,
                    maxfev=10000000):
@@ -295,7 +197,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
 # // This function needs to be refactored. 
 def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  allow_negative=False,bounds=True,rms=None,perrcond=False):
+                  allow_negative=False,bounds=True,rms=None,perrcond=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -430,7 +332,7 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
 # // This function needs to be refactored. 
 def fit_psf(xx,yy,data,coords,psf_params,
-            bounds=True,peak_fit=False):
+            bounds=True,peak_fit=False,perrcond=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -456,6 +358,8 @@ def fit_psf(xx,yy,data,coords,psf_params,
     peak_fit : bool, default=False
         If True only fit the amplitude. Effectively make the bounds on the other
         parameters small. By defualt sets bounds True if set to False.
+    perrcond : bool, default=True
+        If False return the full covariance matrix.
             
     Returns:
     ----------
@@ -539,16 +443,20 @@ def fit_psf(xx,yy,data,coords,psf_params,
     pguess[:,2] = coords[:,0] # y-coord
 
     # Getting the fit parameters, and their errors.
-    popt,perr = Gaussian_2Dfit(xx,yy,data,pguess,
+    popt,pcov = Gaussian_2Dfit(xx,yy,data,pguess,
                                func=NGaussian2D,pbound_low=pbound_low,
                                pbound_up=pbound_up)
 
     if N_gauss == 1:
         # Doesn't need to be 2D if only a single Gaussian.
         popt = popt.flatten()
-        perr = perr.flatten()
+        if perrcond:
+            pcov = np.sqrt(np.diag(pcov))
+    else:
+        if perrcond:
+            pcov = np.sqrt(np.diag(pcov)).reshape(pguess.shape)
 
-    return popt,perr
+    return popt,pcov
 
 
 def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
@@ -1013,25 +921,6 @@ def model_select(params1,params2,xx,yy,data,
         return params, perr
     else:
         return params
-
-
-def Beam_solid_angle(major,minor):
-    """
-    Calculates the solid angle of a Gaussian beam.
-            
-    Parameters:
-    ----------
-    major : float 
-        Major axis size of the beam.
-    minor : float 
-        Minor axis size of the beam.
-            
-    Returns:
-    ----------
-    solid_angle
-    """
-
-    return np.pi*major*minor/(4*np.log(2))
 
 def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
     """
