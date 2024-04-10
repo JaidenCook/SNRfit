@@ -4,9 +4,6 @@ Python module for performing image manipulation on FITS files.
 
 TODO:
 Make this a package.
-Upgrade the background esimtation method.
-Improve the boundary conditions.
-Implement Gaussian deconvolution.
 """
 
 __author__ = "Jaiden Cook"
@@ -14,11 +11,6 @@ __credits__ = ["Jaiden Cook"]
 __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
 __email__ = "Jaiden.Cook@curtin.edu.au"
-
-# Generic stuff:
-import os,sys
-import time
-import warnings
 
 import logging
 logging.captureWarnings(True) 
@@ -42,18 +34,11 @@ plt.rc('ytick', color='k', labelsize='medium', direction='out')
 plt.rc('ytick.major', size=6, pad=4)
 plt.rc('ytick.minor', size=4, pad=4)
 
-# Astropy stuff:
-from astropy import units as u
-from astropy import wcs
-from astropy.io import fits
-from astropy.table import Table
-from astropy.io.votable import writeto as writetoVO
-from astropy.wcs import WCS
 
 # Image processing packages:
 from skimage.feature import blob_dog, blob_log, blob_doh
 
-from src_fit import FWHM2sig, Gaussian2D, NGaussian2D
+from functions import *
 from src_plot import astro_plot_2D
 
 def generate_primes(n):

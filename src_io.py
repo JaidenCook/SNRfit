@@ -10,11 +10,6 @@ __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
 __email__ = "Jaiden.Cook@curtin.edu.au"
 
-# Generic stuff:
-import os,sys
-import time
-import warnings
-
 import logging
 logging.captureWarnings(True) 
 
@@ -23,11 +18,6 @@ import numpy as np
 
 # Astropy stuff:
 from astropy import units as u
-from astropy import wcs
-from astropy.io import fits
-from astropy.table import Table
-from astropy.io.votable import writeto as writetoVO
-from astropy.wcs import WCS
 
 from functions import *
 

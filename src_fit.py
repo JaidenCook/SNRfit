@@ -4,9 +4,6 @@ Python module for fitting cutout radio images.
 
 TODO:
 Make this a package.
-Upgrade the background esimtation method.
-Improve the boundary conditions.
-Implement Gaussian deconvolution.
 """
 
 __author__ = "Jaiden Cook"
@@ -15,47 +12,14 @@ __version__ = "1.0.0"
 __maintainer__ = "Jaiden Cook"
 __email__ = "Jaiden.Cook@curtin.edu.au"
 
-# Generic stuff:
-import os,sys
-import time
-import warnings
-
 import logging
 logging.captureWarnings(True) 
 
 # Array stuff:
 import numpy as np
 
-# Plotting stuff:
-import matplotlib.pyplot as plt
-
-plt.style.use('seaborn-white')
-plt.rcParams['mathtext.fontset'] = 'stix'
-plt.rcParams['font.family'] = 'STIXGeneral'
-plt.rcParams.update({'font.size': 12})
-
-plt.rc('xtick', color='k', labelsize='medium', direction='out')
-plt.rc('xtick.major', size=6, pad=4)
-plt.rc('xtick.minor', size=4, pad=4)
-
-plt.rc('ytick', color='k', labelsize='medium', direction='out')
-plt.rc('ytick.major', size=6, pad=4)
-plt.rc('ytick.minor', size=4, pad=4)
-
-
 # Scipy stuff:
 import scipy.optimize as opt
-
-# Astropy stuff:
-from astropy import units as u
-from astropy import wcs
-from astropy.io import fits
-from astropy.table import Table
-from astropy.io.votable import writeto as writetoVO
-from astropy.wcs import WCS
-
-# Image processing packages:
-from skimage.feature import blob_dog, blob_log
 
 from functions import *
 

@@ -4,9 +4,6 @@ Python module for plotting Gaussian fits to FITS format images.
 
 TODO:
 Make this a package.
-Upgrade the background esimtation method.
-Improve the boundary conditions.
-Implement Gaussian deconvolution.
 """
 
 __author__ = "Jaiden Cook"
@@ -42,18 +39,10 @@ plt.rc('ytick', color='k', labelsize='medium', direction='out')
 plt.rc('ytick.major', size=6, pad=4)
 plt.rc('ytick.minor', size=4, pad=4)
 
-# Astropy stuff:
-from astropy import units as u
-from astropy import wcs
-from astropy.io import fits
-from astropy.table import Table
-from astropy.io.votable import writeto as writetoVO
-from astropy.wcs import WCS
-
 
 ## Plotting functions.
 def point_plot(zz,img_nu,resid_img,wcs,vmax=None,vmin=None,filename=None,
-                scale=1,dpi=70):
+               scale=1,dpi=70):
     """
     Plots the data image, the model image and the residual image for comparison.
     
