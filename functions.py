@@ -183,3 +183,14 @@ def power_law(freq,S0,alpha):
 
     Snu = S0*(freq)**(alpha)
     return Snu
+
+def jac_power_law(freq,S0,alpha):
+    """
+    
+    """
+    dfdS0 = (freq)**(alpha)
+    dfda = S0*np.log(freq)*freq**alpha
+
+    jacVec = np.array([dfdS0,dfda]).T
+
+    return jacVec
