@@ -159,3 +159,27 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
         return zz.ravel()
     else:
         return zz
+    
+
+def power_law(freq,S0,alpha):
+    """
+    Power law function for calculating flux density.
+
+    Parameters:
+    ----------
+    freq : float, or numpy ndarray
+        Float or vector of frequencies. Typcally normalised by some reference
+        frequency nu0. If not given it is assumed to be nu=1Hz.
+    S0 : float
+        This is the flux density at the reference frequency.
+    alpha : float
+        This is the spectral index.
+            
+    Returns:
+    ----------
+    Snu : float, or numpy ndarray
+        Flux density at frequency nu.
+    """
+
+    Snu = S0*(freq)**(alpha)
+    return Snu
