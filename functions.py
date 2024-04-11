@@ -194,3 +194,25 @@ def jac_power_law(freq,S0,alpha):
     jacVec = np.array([dfdS0,dfda]).T
 
     return jacVec
+
+
+def matern_cov(r,sigma):
+    """
+    Matern covariance kernel used for estimating the covariance between channels.
+    """
+    import matplotlib.pyplot as plt
+    if isinstance(sigma, np.ndarray):
+        if len(sigma) != len(r):
+            errmsg = f'Length of sigma not equal to r'
+            raise ValueError(errmsg)
+    sigx,sigy = np.meshgrid(sigma,sigma)
+    sigMat = sigx*sigy
+    
+    # Assuming that the channels are independent.
+    r0 = r[1]-r[0]
+    rx,ry = np.meshgrid(r,r)
+    dr = np.abs(rx-ry)
+    
+    k = sigMat*(1+np.sqrt(3)*(dr/r0))*np.exp(-np.sqrt(3)*(dr/r0))
+
+    return k    
