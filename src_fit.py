@@ -160,8 +160,9 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
     
 
 # // This function needs to be refactored. 
+# Refactor this to remove the constants, replace with psfparams.
 def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  allow_negative=False,bounds=True,rms=None,perrcond=True):
+                  bounds=True,rms=None,perrcond=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -202,7 +203,6 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
     # Major and Minor axis in arcminutes of the SNR.
     major = constants[0]
-    #minor = constants[1]
     dx = constants[2] #pixel size in degrees [deg]
 
     # Restoring beam parameters. Used in the guess.
@@ -233,15 +233,18 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     # The guess parameter array.
     pguess = np.ones((N_gauss,N_params))*p0[None,:]
 
-    Max_major = (maj_frac*major/60)/dx # [pix]
-
     # Defining the min and max peak x location limits.
-    x_low = np.nanmin(xx)
-    x_hi = np.nanmax(xx)
+    xlow = np.nanmin(xx)
+    xhi = np.nanmax(xx)
 
     # Defining the min and max peak y location limits.
-    y_low = np.nanmin(yy)
-    y_hi = np.nanmax(yy)
+    ylow = np.nanmin(yy)
+    yhi = np.nanmax(yy)
+
+    # Defining some absolute major axis.
+    major = np.sqrt((xhi-xlow)**2 + (yhi-ylow)**2)
+    Max_major = (maj_frac*major) # [pix]
+
 
     # Assigning initial positions.
     pguess[:,1] = coords[:,1]
@@ -263,19 +266,12 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         pguess[:,4][coords[:,2]>sigyPSF] = coords[:,2][coords[:,2]>sigyPSF]
 
     # Specifying the lower fit bounds for each Gaussian.
-    if allow_negative:
-        # If true allow fitting negative peaks.
-        # Template 1D array.
-        pbound_low = np.array([-np.inf,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
-    else:
-        #pbound_low = np.array([0.0,x_low,y_low,sigxPSF,sigyPSF,0.0]) 
-        pbound_low = np.array([0.0,x_low+sigxPSF/2,y_low+sigxPSF/2,
-                               sigxPSF,sigyPSF,0.0]) 
+    pbound_low = np.array([0.0,xlow+sigxPSF/2,ylow+sigxPSF/2,
+                            sigxPSF,sigyPSF,0.0]) 
 
     # Expanding for each Gaussian component.
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-    #pbound_up = np.array([np.inf,x_hi,y_hi,Max_major,Max_major,2*np.pi])
-    pbound_up = np.array([np.inf,x_hi-sigxPSF/2,y_hi-sigxPSF/2,
+    pbound_up = np.array([np.inf,xhi-sigxPSF/2,yhi-sigxPSF/2,
                           Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
