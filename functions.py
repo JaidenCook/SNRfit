@@ -51,25 +51,29 @@ def sig2FWHM(sig):
     FWHM = sig*(2*np.sqrt(2*np.log(2)))
     return FWHM
 
-def Beam_solid_angle(major,minor):
+def Beam_solid_angle(major,minor,degrees=True):
     """
     Calculates the solid angle of a Gaussian beam.
             
     Parameters:
     ----------
     major : float 
-        Major axis size of the beam.
+        Major axis size of the beam in radians.
     minor : float 
-        Minor axis size of the beam.
+        Minor axis size of the beam in radians.
+    degrees : bool, default=True
+        If True the input units are in degrees.
             
     Returns:
     ----------
     solid_angle : float
         Gaussian beam solid angle.
     """
+    if degrees:
+        major = np.radians(major)
+        minor = np.radians(minor)
 
-    #return np.pi*major*minor/(4*np.log(2))
-    solid_angle = np.pi*FWHM2sig(major)*FWHM2sig(minor)
+    solid_angle = 2*np.pi*FWHM2sig(major)*FWHM2sig(minor)
     return solid_angle
 
 
