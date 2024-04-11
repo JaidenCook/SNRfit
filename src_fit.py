@@ -144,12 +144,12 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
         # If bounds supplied.
         popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
                                 bounds=(pbound_low.ravel(),pbound_up.ravel()),
-                                maxfev=maxfev,sigma=sigma,nan_policy='omit')
+                                maxfev=maxfev,sigma=sigma)
                                 #,method="dogbox"
     else:
         # If no bounds supplied.
         popt, pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                                maxfev=maxfev,sigma=sigma,nan_policy='omit')
+                                maxfev=maxfev,sigma=sigma)
 
     
     popt = popt.reshape(np.shape(pguess)) # Fit parameters.
@@ -353,7 +353,7 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
 
     popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
                                 bounds=(pbound_low,pbound_up),
-                                maxfev=maxfev,sigma=sigma,nan_policy='omit')
+                                maxfev=maxfev,sigma=sigma)
     
     if perrcond:
         pcov = np.sqrt(np.diag(pcov))
