@@ -523,10 +523,10 @@ def hist_residual_plot(res_data,res_data2=None,N_peaks=None,figsize=(8,7),
 
         figsize = (figx,figy)
 
-    fig,axs = plt.subplots(1,figsize=figsize)
+    _,axs = plt.subplots(1,figsize=figsize)
 
     if label1 == None:
-        label1 = '{0} Gaussian Fit'.format(N_peaks)
+        label1 = f'{N_peaks} Gaussian Fit'
     else:
         pass
 
