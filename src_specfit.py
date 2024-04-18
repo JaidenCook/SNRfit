@@ -314,7 +314,7 @@ def initial_samples(paramsDict,Nens=100,p0cond=False):
         # Get the parameter dictionary.
         p0Dict = paramsDict[key]
         # Get the hyperparameters.
-        hypParams = p0Dict['hyperparams']
+        hypParams = list(p0Dict['hyperparams'])
         
         # If initial values are given, and p0cond = True, then use the initial
         # values in place of the hyperparameters. This is useful if you fit
@@ -336,8 +336,8 @@ def initial_samples(paramsDict,Nens=100,p0cond=False):
         elif p0Dict['prior'] == 'normal':
             pVec = np.random.normal(hypParams[0],hypParams[1], Nens) 
         elif p0Dict['prior'] == 'lognormal':
-            mu = hypParams
-            sig = hypParams
+            mu = hypParams[0]
+            sig = hypParams[1]
 
             # Log normal distribution satistics.
             logMu = np.log(mu**2/np.sqrt(mu**2 + sig**2))
@@ -351,7 +351,8 @@ def initial_samples(paramsDict,Nens=100,p0cond=False):
     return paramsSamples
 
 def bayes_spec_fit(freqs,flux,paramsDict,sigma=None,
-                   Nburnin=500,Nsamples=1250,Nens=100,p0cond=False,corner=False):
+                   Nburnin=500,Nsamples=1250,Nens=100,p0cond=False,
+                   corner=False):
     """
     Fit the parameters using Bayesian inference.
     
@@ -400,15 +401,16 @@ def bayes_spec_fit(freqs,flux,paramsDict,sigma=None,
 
     return popt,perr
 
-# plot the resulting posteriors
+
 def plotposts(samples,paramsDict,popt=None, **kwargs):
     """
-    Function to plot posteriors using corner.py and scipy's gaussian KDE function.
+    Function to plot posteriors using corner.py and scipy's gaussian KDE 
+    function.
     """
     # functions for plotting posteriors
     import corner
     from scipy.stats import gaussian_kde
-    
+
     paramsKeys = list(paramsDict.keys())
     labels = [paramsDict[key]['label'] for key in paramsKeys]
     if "truths" not in kwargs:
