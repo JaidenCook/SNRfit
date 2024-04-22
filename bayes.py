@@ -204,6 +204,8 @@ def loglikelihood(theta,data,sigma,xVec,model=power_law):
         S0, alpha = theta
         # Evaluate the model.
         mod_data = model(xVec/xVec[0], S0, alpha)
+    else:
+        mod_data = model(xVec,theta)
 
     # Residual of the model and the data.
     resid = mod_data - data
@@ -341,10 +343,9 @@ def plotposts(samples,paramsDict,popt=None, **kwargs):
     labels = [paramsDict[key]['label'] for key in paramsKeys]
     if "truths" not in kwargs:
         if np.any(popt):
-            kwargs["truths"] = [popt[0], popt[1]]
+            kwargs["truths"] = popt
         else:
-            kwargs["truths"] = [paramsDict[paramsKeys[0]]['bounds'][0], 
-                                paramsDict[paramsKeys[1]]['bounds'][0]]
+            pass
 
     fig = corner.corner(samples, labels=labels, 
                         hist_kwargs={'density': True}, **kwargs)
