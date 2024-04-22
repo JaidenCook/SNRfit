@@ -342,15 +342,38 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
     pbound_low = np.zeros(ampguess.size)
     pbound_up = np.ones(ampguess.size)*np.inf
 
+    # Setting up the uncertainties. scipy accepts a number of different inputs.
     if np.any(rms):
-        if np.any(psfParams):
-            sigma = calc_covMatrix(xx,yy,rms,psfParams)
-            print('Calculated the covariance matrix...')
+        if isinstance(rms,np.ndarray):
+            if np.any(psfParams):
+                # If the psf parameters are given calculate the cov matrix.
+                sigma = calc_covMatrix(xx,yy,rms,psfParams)
+                print('Calculated the covariance matrix...')
+            else:
+                # If no psf params given, check if rms is a vector or matrix.
+                if len(rms.shape) > 1:
+                    if rms.shape[0] == rms.shape[1]:
+                        # covariance matrix is already provided.
+                        sigma = rms
+                    else:
+                        errMsg = f'Covmatrix shape not square {rms.shape}.'
+                        raise ValueError(errMsg)
+                else:
+                    if rms.size == data.size:
+                        # Check the data vector and rms vector have the same 
+                        # size.
+                        sigma = rms
+                    else:
+                        errMsg(f'Data size {data.size} and rms vector size ' +\
+                               f'{rms.size} not equal.')
+                        raise ValueError(errMsg)
         else:
+            # If single values make sigma vector.
             sigma = np.ones(data.size)*rms
     else:
-        sigma=None
+        sigma = None
 
+    # Perform the lm-fit.
     popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
                                 bounds=(pbound_low,pbound_up),
                                 maxfev=maxfev,sigma=sigma)
