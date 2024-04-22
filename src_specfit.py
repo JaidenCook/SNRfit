@@ -24,7 +24,7 @@ import numpy as np
 import scipy.optimize as opt
 
 from functions import *
-from bayes import *
+from bayes import initial_samples,loglikelihood,logposterior,plotposts,calc_logZ
 
 def spec_fit(freqs,fluxVec,func=power_law,sigma=None,bounds=True,
              covmatrix=False,perrcond=True,verbose=False):
