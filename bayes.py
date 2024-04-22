@@ -170,7 +170,7 @@ def logposterior(theta,data,sigma,paramsDict,xVec,model=power_law):
 
     return logPosterior
 
-def loglikelihood(theta,data,sigma,freqs,model=power_law):
+def loglikelihood(theta,data,sigma,xVec,model=power_law):
     """
     The natural logarithm of the joint Gaussian likelihood.
 
@@ -187,7 +187,7 @@ def loglikelihood(theta,data,sigma,freqs,model=power_law):
         The set of data/observations.
     sigma : float, or numpy ndarray
         The standard deviation of the data points.
-    freqs : numpy ndarray
+    xVec : numpy ndarray
         The abscissa values at which the data/model is defined.
     model : function, default=power_law
         Model that describes the data. Default is the power law.
@@ -203,7 +203,7 @@ def loglikelihood(theta,data,sigma,freqs,model=power_law):
     if model==power_law:
         S0, alpha = theta
         # Evaluate the model.
-        mod_data = model(freqs/freqs[0], S0, alpha)
+        mod_data = model(xVec/xVec[0], S0, alpha)
 
     # Residual of the model and the data.
     resid = mod_data - data
