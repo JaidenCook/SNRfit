@@ -354,6 +354,99 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
 
     return popt,pcov
 
+def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,
+                  Nburnin=500,Nsamples=1250,Nens=100,p0cond=False,corner=False):
+    """
+    Function for fitting the amplitude of a Gaussian and no other parameters.
+
+    Parameters:
+    ----------
+    xx : numpy array
+        Numpy array containing the x-positions for the data, should have dim 1.
+    yy : numpy array 
+        Numpy array containing the y-positions for the data, should have dim 1.
+    data : numpy array
+        Numpy array containing the image data, should have dimensions 1.
+    params : numpy array
+        Gaussian parameters.
+    rms : float, default=None
+        Rms noise in the data.
+    psfParams : list, or tuple:
+        Contains the PSF parameters, used to calculate the data covariance 
+        matrix.
+    perrcond : bool, default=True
+        If False return the full covariance matrix.
+    maxfev : int, default=int(1e7)
+        Maximum number of function calls to scipy curve fit.
+            
+    Returns:
+    ----------
+    popt : numpy array
+        2D numpy array containing the best fit parameters.
+    pcov : numpy array
+        2D numpy array containing the covariance matrix for the fit parameters.
+    """
+    from bayes import initial_samples,loglikelihood,logposterior,plotposts
+    import emcee
+
+    ampguess = params[:,0]
+    x0Vec = params[:,1]
+    y0Vec = params[:,2]
+    sigxVec = params[:,3]
+    sigyVec = params[:,4]
+    PAVEC = params[:,5]
+    xdata_tuple = (xx.ravel(),yy.ravel())
+
+    def NDGauss_amp(xdata_tuple,ampVec):
+        
+        zz = np.zeros(np.shape(xx))
+        for i,Speak in enumerate(ampVec):
+            zz += Gaussian2D(xdata_tuple,Speak,x0Vec[i],y0Vec[i],sigxVec[i],
+                             sigyVec[i],PAVEC[i])
+        return zz
+    
+    pbound_low = np.zeros(ampguess.size)
+    pbound_up = np.ones(ampguess.size)*np.max(ampguess)*100
+
+    sigma = get_sigma(rms,xx,yy,psfParams=psfParams)
+
+    paramsDict = {}
+    for i,amp in enumerate(ampguess):
+        tempDict={'prior':'uniform','hyperparams':(pbound_low[i],pbound_up[i]),
+                  'label':r'$S_i$','p0':amp,'e_p0':rms}
+        paramsDict[f'param{i}'] = tempDict
+    
+
+    # Get the initial samples.
+    inisamples = initial_samples(paramsDict,Nens=Nens,p0cond=p0cond)
+    # Number of parameters/dimensions
+    ndims = inisamples.shape[1] 
+
+    # For bookkeeping set number of likelihood calls to zero
+    loglikelihood.ncalls = 0
+
+    # 
+    argslist = (data,sigma,paramsDict,xdata_tuple,NDGauss_amp)
+
+    # Set up the sampler.
+    sampler = emcee.EnsembleSampler(Nens,ndims,logposterior,args=argslist)
+
+    # Pass the initial samples and total number of samples required
+    sampler.run_mcmc(inisamples, Nsamples + Nburnin)
+
+    # Extract the samples (removing the burn-in)
+    samples_emcee = sampler.get_chain(flat=True, discard=Nburnin)
+
+    # Store the results.
+    popt = np.nanmean(samples_emcee,axis=0)
+    perr = np.nanstd(samples_emcee,axis=0)
+
+    if corner:
+        # If True plot the samples.
+        plotposts(samples_emcee,paramsDict=paramsDict,popt=popt)
+
+    return popt,perr
+
 #
 def get_sigma(rms,xx,yy,psfParams=None):
     """
