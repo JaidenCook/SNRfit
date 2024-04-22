@@ -342,6 +342,25 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
     pbound_low = np.zeros(ampguess.size)
     pbound_up = np.ones(ampguess.size)*np.inf
 
+    sigma = get_sigma(rms,xx,yy,psfParams=psfParams)
+
+    # Perform the lm-fit.
+    popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
+                                bounds=(pbound_low,pbound_up),
+                                maxfev=maxfev,sigma=sigma)
+    
+    if perrcond:
+        pcov = np.sqrt(np.diag(pcov))
+
+    return popt,pcov
+
+#
+def get_sigma(rms,xx,yy,psfParams=None):
+    """
+    Wrapper function for determining Sigma. This will return either a 1D vector,
+    a covariance matrix, or None, depening on the input rms shape.
+    """
+
     # Setting up the uncertainties. scipy accepts a number of different inputs.
     if np.any(rms):
         if isinstance(rms,np.ndarray):
@@ -359,29 +378,21 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
                         errMsg = f'Covmatrix shape not square {rms.shape}.'
                         raise ValueError(errMsg)
                 else:
-                    if rms.size == data.size:
+                    if rms.size == xx.size:
                         # Check the data vector and rms vector have the same 
                         # size.
                         sigma = rms
                     else:
-                        errMsg(f'Data size {data.size} and rms vector size ' +\
+                        errMsg(f'Data size {xx.size} and rms vector size ' +\
                                f'{rms.size} not equal.')
                         raise ValueError(errMsg)
         else:
             # If single values make sigma vector.
-            sigma = np.ones(data.size)*rms
+            sigma = np.ones(xx.size)*rms
     else:
         sigma = None
-
-    # Perform the lm-fit.
-    popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
-                                bounds=(pbound_low,pbound_up),
-                                maxfev=maxfev,sigma=sigma)
     
-    if perrcond:
-        pcov = np.sqrt(np.diag(pcov))
-
-    return popt,pcov
+    return sigma
 
 def Fit_quality(data,p_mod,xx,yy,rms,reduced_cond=False):
     """
