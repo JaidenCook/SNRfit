@@ -144,16 +144,16 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
     
     # Looping through all the Gaussians. Parameter array has to be 1D, 
     # each Gaussian parameter set separated by 6 places in the list.
-    for i in range(0, len(params), 6):
+    for i in range(0,len(params),6):
         amp_temp = params[i]
-        x0_temp = params[i + 1]
-        y0_temp = params[i + 2]
-        sigx_temp = params[i + 3]
-        sigy_temp = params[i + 4]
-        theta_temp = params[i + 5]
+        x0_temp = params[i+1]
+        y0_temp = params[i+2]
+        sigx_temp = params[i+3]
+        sigy_temp = params[i+4]
+        theta_temp = params[i+5]
 
         zz = zz + Gaussian2D(xdata_tuple, amp_temp, x0_temp, y0_temp, 
-                                sigx_temp, sigy_temp, theta_temp)
+                             sigx_temp, sigy_temp, theta_temp)
 
     if fit:
         return zz.ravel()
@@ -161,7 +161,7 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
         return zz
     
 
-def power_law(freq,S0,alpha):
+def power_law(freq,S0,alpha,freq0=160e6):
     """
     Power law function for calculating flux density.
 
@@ -174,6 +174,8 @@ def power_law(freq,S0,alpha):
         This is the flux density at the reference frequency.
     alpha : float
         This is the spectral index.
+    freq0 : float, default=160e6
+        Reference frequency in Hz.
             
     Returns:
     ----------
@@ -181,15 +183,28 @@ def power_law(freq,S0,alpha):
         Flux density at frequency nu.
     """
 
-    Snu = S0*(freq)**(alpha)
+    Snu = S0*(freq/freq0)**(alpha)
     return Snu
 
-def jac_power_law(freq,S0,alpha):
+def jac_power_law(freq,S0,alpha,freq0=160e6):
     """
-    
+    Parameters:
+    ----------
+    freq : float, or numpy ndarray
+        Float or vector of frequencies. Typcally normalised by some reference
+        frequency nu0. If not given it is assumed to be nu=1Hz.
+    S0 : float
+        This is the flux density at the reference frequency.
+    alpha : float
+        This is the spectral index.
+    freq0 : float, default=160e6
+        Reference frequency in Hz.
+            
+    Returns:
+    ----------
     """
-    dfdS0 = (freq)**(alpha)
-    dfda = S0*np.log(freq)*freq**alpha
+    dfdS0 = (freq/freq0)**(alpha)
+    dfda = S0*np.log(freq/freq0)*(freq/freq0)**alpha
 
     jacVec = np.array([dfdS0,dfda]).T
 
@@ -216,4 +231,46 @@ def matern_cov(r,sigma,r0=7.28e6):
     k= sigMat*(1+np.sqrt(3)*(dr/r0))*np.exp(-np.sqrt(3)*(dr/r0))
     #k=sigMat*(1+np.sqrt(5)*(dr/r0)+(5/3)*(dr/r0)**2)*np.exp(-np.sqrt(5)*(dr/r0))
 
-    return k    
+    return k
+
+def Sint_calc(Speak,Maj,Min,omegaPSF,e_Speak=None,e_Maj=None,e_Min=None,
+              degrees=True):
+    """
+    Function to propagate the integrated flux density uncertainty.
+    
+    Parameters:
+    ----------
+    Speak : float, numpy ndarray
+        Float or numpy array of peak flux densities in Jy/beam
+    Maj : float, numpy ndarray
+        Major axis of Gaussian component(s) in degrees.
+    Min : float, numpy ndarray
+        Minor axis of Gaussian component(s) in degrees.
+    omegaPSF : float, numpy ndarray
+        Solid angle of the PSF. Used to determine the number of beams for a 
+        given Gaussian component.
+    e_Speak : float, numpy ndarray, default=None
+        Uncertainty in peak flux density (Jy/beam).
+    e_Maj : float, numpy ndarray, default=None
+        Uncertainty in Major axis (deg).
+    e_Min : float, numpy ndarray, default=None
+        Uncertainty in Minor axis (deg).
+    
+    Returns:
+    ----------
+    Sint : float, numpy ndarray
+        Flux density in Jy.
+    e_Sint : optional, float, numpy ndarray
+        Uncertainty in the flux density.
+    """
+    # Const in units of beam.
+    Nbeam = Beam_solid_angle(Maj,Min,degrees=degrees)/omegaPSF
+    Sint = Speak*Nbeam # Jy.
+
+    # If any errors are given calculate the uncertainty in the flux density.
+    if np.any(e_Speak) and np.any(e_Min) and np.any(e_Maj):
+        e_Sint=Sint*np.sqrt((e_Maj/Maj)**2 +(e_Min/Min)**2 +(e_Speak/Speak)**2)
+        
+        return Sint, e_Sint
+    else:
+        return Sint
