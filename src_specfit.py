@@ -56,7 +56,7 @@ def spec_fit(freqs,fluxVec,func=power_law,sigma=None,bounds=True,
     pcov : numpy array
         2D numpy array containing the covariance matrix for the fit parameters.
     """
-    freq0 = freqs[0]
+    #freq0 = freqs[0]
     #freq0 = freqs[-1]
     naninds = np.isnan(fluxVec) == False
     freqs = freqs[naninds]
@@ -81,7 +81,7 @@ def spec_fit(freqs,fluxVec,func=power_law,sigma=None,bounds=True,
     else:
         bounds = None
 
-    popt,pcov = opt.curve_fit(func,freqs/freq0,fluxVec,
+    popt,pcov = opt.curve_fit(func,freqs,fluxVec,
                               p0=[1,-0.7],maxfev=int(1e5),sigma=sigma,
                               jac=jac_power_law,bounds=bounds)
     
@@ -133,8 +133,14 @@ def bayes_spec_fit(freqs,flux,paramsDict,sigma=None,
     samples_emcee = sampler.get_chain(flat=True, discard=Nburnin)
 
     # Store the results.
-    popt = np.nanmean(samples_emcee,axis=0)
-    perr = np.nanstd(samples_emcee,axis=0)
+    #popt = np.nanmean(samples_emcee,axis=0)
+    popt = np.nanmedian(samples_emcee,axis=0)
+    #perr = np.nanstd(samples_emcee,axis=0)
+    perr = np.nanquantile(samples_emcee,[0.25,0.5],axis=0)
+    perr = perr[1,:] - perr[0,:]
+    print(perr)
+    #print(perr[1,0] - perr[0,0])
+    #print(perr[1,1] - perr[0,1])
 
     if corner:
         # If True plot the samples.
