@@ -18,6 +18,7 @@ import numpy as np
 
 # Astropy stuff:
 from astropy import units as u
+from astropy.io import fits
 
 from functions import *
 
@@ -397,3 +398,45 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
         return x_vec,y_vec,Maj_pix,Min_pix
     else:
         return x_vec,y_vec
+
+def open_fits(filepath,return_hdul=False):
+    """
+    Wrapper function for opening a fits image file. Discerns between two 
+    different types of fits images with different dimensions.
+
+    Parameters:
+    ----------
+    filepath : str
+        File and path location.
+    return_hdul : bool, default=False
+        If True return hdul.
+ 
+            
+    Returns:
+    ----------
+    header : astropy object
+        Astropy FITS header image object.
+    img_arr : numpy array
+        Image array.
+    hdul : astropy object, optional
+        Astropy hdul object. Contains image and header.
+    """
+
+    with fits.open(filepath) as hdul:
+        header = hdul[0].header
+
+        # 2D image Arrays come in several sizes depending on the format.
+        # Below are the most common.
+        if len(hdul[0].data.shape) == 4:
+            img_arr = hdul[0].data[0,0,:,:]
+        elif len(hdul[0].data.shape) == 2:
+            img_arr = hdul[0].data
+        else:
+            err_msg = f'hdul Shape no 2 or 4.'
+            raise ValueError(err_msg)
+
+        if return_hdul:
+            # If True return the hdul object.
+            return header,img_arr,hdul
+        else:
+            return header,img_arr
