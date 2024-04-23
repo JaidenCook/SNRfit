@@ -203,7 +203,8 @@ def loglikelihood(theta,data,sigma,xVec,model=power_law):
     if model==power_law:
         S0, alpha = theta
         # Evaluate the model.
-        mod_data = model(xVec/xVec[0], S0, alpha)
+        #mod_data = model(xVec/xVec[0], S0, alpha)
+        mod_data = model(xVec, S0, alpha)
     else:
         mod_data = model(xVec,theta)
 
