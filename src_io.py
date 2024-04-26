@@ -391,7 +391,8 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
 
     x_vec, y_vec = w.wcs_world2pix(RA,DEC,pixoffset)
 
-    if np.any(Maj) and np.any(Min):
+    #if np.any(Maj) and np.any(Min):
+    if np.any(Maj.size) and np.any(Min.size):
         Maj_pix = Maj/dx
         Min_pix = Min/dx
 
@@ -435,6 +436,7 @@ def open_fits(filepath,return_hdul=False):
             err_msg = f'hdul Shape no 2 or 4.'
             raise ValueError(err_msg)
 
+        ### TODO maybe just return the HDU object for return_hdul.
         if return_hdul:
             # If True return the hdul object.
             return header,img_arr,hdul
