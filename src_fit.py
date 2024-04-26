@@ -255,13 +255,11 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,major=10,
         pguess[:,4][coords[:,2]>sigyPSF] = coords[:,2][coords[:,2]>sigyPSF]
 
     # Specifying the lower fit bounds for each Gaussian.
-    pbound_low = np.array([0.0,xlow+sigxPSF/2,ylow+sigxPSF/2,
-                            sigxPSF,sigyPSF,0.0]) 
+    pbound_low = np.array([0.0,xlow,ylow,sigxPSF,sigyPSF,0.0]) 
 
     # Expanding for each Gaussian component.
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-    pbound_up = np.array([np.inf,xhi-sigxPSF/2,yhi-sigxPSF/2,
-                          Max_major,Max_major,2*np.pi])
+    pbound_up = np.array([np.inf,xhi,yhi,Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
     # Getting the fit parameters, and their errors.
