@@ -161,8 +161,8 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
 # // This function needs to be refactored. 
 # Refactor this to remove the constants, replace with psfparams.
-def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
-                  bounds=True,rms=None,perrcond=True):
+def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,major=10,
+                  rms=None,perrcond=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -180,7 +180,7 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
         dimension 1.
     data : numpy array
         Numpy array containing the image data, should have dimensions 1.
-    coords : numpy array
+    psfParams : numpy array
         Gaussian component x,y position array, has dimension 2.
     maj_min : tuple
         Contains the major and minor axis of the SNR in arcminutes.
@@ -202,18 +202,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
     """
 
     # Major and Minor axis in arcminutes of the SNR.
-    major = constants[0]
-    dx = constants[2] #pixel size in degrees [deg]
-
-    # Restoring beam parameters. Used in the guess.
-    pixel_scale = dx*3600 # [arcsec] 
-    a_psf = constants[3]*3600 # [arcsec]
-    b_psf = constants[4]*3600 # [arsec]
-    PA_psf = np.abs(np.radians(constants[5])) # [rads]
-
-    # Restoring beam sizes in pixels:
-    sigxPSF = FWHM2sig(a_psf/pixel_scale)
-    sigyPSF = FWHM2sig(b_psf/pixel_scale)
+    sigxPSF,sigyPSF,PA_psf = psfParams
+    PA_psf = np.abs(np.radians(PA_psf))
 
     if np.any(rms):
         # If given calculate the covariance matrix.
@@ -243,8 +233,7 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
 
     # Defining some absolute major axis.
     major = np.sqrt((xhi-xlow)**2 + (yhi-ylow)**2)
-    Max_major = (maj_frac*major) # [pix]
-
+    Max_major = maj_frac*major # [pix]
 
     # Assigning initial positions.
     pguess[:,1] = coords[:,1]
@@ -275,14 +264,10 @@ def SNR_Gauss_fit(xx,yy,data,coords,constants,maj_frac=0.125,
                           Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
-    if bounds:
-        # Getting the fit parameters, and their errors.
-        popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
-                                    pbound_low=pbound_low,pbound_up=pbound_up,
-                                    sigma=sigma)
-    else:
-        popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,
-                                    func=NGaussian2D,sigma=sigma)
+    # Getting the fit parameters, and their errors.
+    popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
+                                pbound_low=pbound_low,pbound_up=pbound_up,
+                                sigma=sigma)
     
     if perrcond:
         pcov = np.sqrt(np.diag(pcov)).reshape(np.shape(pguess))
@@ -306,7 +291,7 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
     params : numpy array
         Gaussian parameters.
     rms : float, default=None
-        Rms noise in the data.
+        Rms noise in the dataO.
     psfParams : list, or tuple:
         Contains the PSF parameters, used to calculate the data covariance 
         matrix.
