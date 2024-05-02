@@ -51,6 +51,32 @@ def sig2FWHM(sig):
     FWHM = sig*(2*np.sqrt(2*np.log(2)))
     return FWHM
 
+def paRA2paXY(pa,degrees=True):
+    """
+    Rotate the position angle from RA and DEC orientation to
+    pixel coordinates.
+    """
+
+    if degrees:
+        pa = 360 - (pa + 90)
+    else:
+        pa = 2*np.pi - (pa + np.pi/2)
+
+    return pa
+
+def paXYpaRA2(pa,degrees=True):
+    """
+    Rotate the position angle from RA and DEC orientation to
+    pixel coordinates.
+    """
+
+    if degrees:
+        pa = 360 - (pa + 90)
+    else:
+        pa = 2*np.pi - (pa + np.pi/2)
+
+    return pa
+
 def Beam_solid_angle(major,minor,degrees=True):
     """
     Calculates the solid angle of a Gaussian beam.
