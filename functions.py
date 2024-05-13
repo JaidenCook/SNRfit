@@ -102,6 +102,48 @@ def Beam_solid_angle(major,minor,degrees=True):
     solid_angle = 2*np.pi*FWHM2sig(major)*FWHM2sig(minor)
     return solid_angle
 
+def Sint_calc(Speak,Maj,Min,omegaPSF,e_Speak=None,e_Maj=None,e_Min=None,
+              degrees=True):
+    """
+    Function to propagate the integrated flux density uncertainty.
+    
+    Parameters:
+    ----------
+    Speak : float, numpy ndarray
+        Float or numpy array of peak flux densities in Jy/beam
+    Maj : float, numpy ndarray
+        Major axis of Gaussian component(s) in degrees.
+    Min : float, numpy ndarray
+        Minor axis of Gaussian component(s) in degrees.
+    omegaPSF : float, numpy ndarray
+        Solid angle of the PSF. Used to determine the number of beams for a 
+        given Gaussian component.
+    e_Speak : float, numpy ndarray, default=None
+        Uncertainty in peak flux density (Jy/beam).
+    e_Maj : float, numpy ndarray, default=None
+        Uncertainty in Major axis (deg).
+    e_Min : float, numpy ndarray, default=None
+        Uncertainty in Minor axis (deg).
+    
+    Returns:
+    ----------
+    Sint : float, numpy ndarray
+        Flux density in Jy.
+    e_Sint : optional, float, numpy ndarray
+        Uncertainty in the flux density.
+    """
+    # Const in units of beam.
+    Nbeam = Beam_solid_angle(Maj,Min,degrees=degrees)/omegaPSF
+    Sint = Speak*Nbeam # Jy.
+
+    # If any errors are given calculate the uncertainty in the flux density.
+    if np.any(e_Speak) and np.any(e_Min) and np.any(e_Maj):
+        e_Sint=Sint*np.sqrt((e_Maj/Maj)**2 +(e_Min/Min)**2 +(e_Speak/Speak)**2)
+        
+        return Sint, e_Sint
+    else:
+        return Sint
+
 
 def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
     """
@@ -259,44 +301,3 @@ def matern_cov(r,sigma,r0=7.28e6):
 
     return k
 
-def Sint_calc(Speak,Maj,Min,omegaPSF,e_Speak=None,e_Maj=None,e_Min=None,
-              degrees=True):
-    """
-    Function to propagate the integrated flux density uncertainty.
-    
-    Parameters:
-    ----------
-    Speak : float, numpy ndarray
-        Float or numpy array of peak flux densities in Jy/beam
-    Maj : float, numpy ndarray
-        Major axis of Gaussian component(s) in degrees.
-    Min : float, numpy ndarray
-        Minor axis of Gaussian component(s) in degrees.
-    omegaPSF : float, numpy ndarray
-        Solid angle of the PSF. Used to determine the number of beams for a 
-        given Gaussian component.
-    e_Speak : float, numpy ndarray, default=None
-        Uncertainty in peak flux density (Jy/beam).
-    e_Maj : float, numpy ndarray, default=None
-        Uncertainty in Major axis (deg).
-    e_Min : float, numpy ndarray, default=None
-        Uncertainty in Minor axis (deg).
-    
-    Returns:
-    ----------
-    Sint : float, numpy ndarray
-        Flux density in Jy.
-    e_Sint : optional, float, numpy ndarray
-        Uncertainty in the flux density.
-    """
-    # Const in units of beam.
-    Nbeam = Beam_solid_angle(Maj,Min,degrees=degrees)/omegaPSF
-    Sint = Speak*Nbeam # Jy.
-
-    # If any errors are given calculate the uncertainty in the flux density.
-    if np.any(e_Speak) and np.any(e_Min) and np.any(e_Maj):
-        e_Sint=Sint*np.sqrt((e_Maj/Maj)**2 +(e_Min/Min)**2 +(e_Speak/Speak)**2)
-        
-        return Sint, e_Sint
-    else:
-        return Sint
