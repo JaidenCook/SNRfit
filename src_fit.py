@@ -161,7 +161,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
 # // This function needs to be refactored. 
 # Refactor this to remove the constants, replace with psfparams.
-def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,major=10,
+def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
                   rms=None,perrcond=True):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
@@ -325,7 +325,7 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
     pbound_low = np.zeros(ampguess.size)
     pbound_up = np.ones(ampguess.size)*np.inf
 
-    sigma = get_sigma(rms,xx,yy,psfParams=psfParams)
+    sigma = get_sigma(np.array(rms),xx,yy,psfParams=psfParams)
 
     # Perform the lm-fit.
     popt,pcov = opt.curve_fit(NDGauss_amp,xdata_tuple,data.ravel(),p0=ampguess,
@@ -337,8 +337,9 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
 
     return popt,pcov
 
-def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,
-                  Nburnin=500,Nsamples=1250,Nens=100,p0cond=False,corner=False):
+def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
+                  Nsamples=1250,Nens=100,p0cond=False,corner=False,
+                  prior='uniform'):
     """
     Function for fitting the amplitude of a Gaussian and no other parameters.
 
@@ -361,6 +362,9 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,
         If False return the full covariance matrix.
     maxfev : int, default=int(1e7)
         Maximum number of function calls to scipy curve fit.
+    prior : str, default='uniform'
+        Type of prior to pick, currently only supporting lognormal, Gaussian
+        and uniform.
             
     Returns:
     ----------
@@ -388,14 +392,19 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,
                              sigyVec[i],PAVEC[i])
         return zz
     
-    pbound_low = np.zeros(ampguess.size)
-    pbound_up = np.ones(ampguess.size)*np.max(ampguess)*100
-
+    if prior == 'uniform':
+        pbound_low = np.zeros(ampguess.size)
+        pbound_up = np.ones(ampguess.size)*np.max(ampguess)*100
+    elif prior == 'lognormal':
+        pbound_low = ampguess # mean.
+        pbound_up = rms*np.ones(ampguess.size)
+    
+    #
     sigma = get_sigma(rms,xx,yy,psfParams=psfParams)
 
     paramsDict = {}
     for i,amp in enumerate(ampguess):
-        tempDict={'prior':'uniform','hyperparams':(pbound_low[i],pbound_up[i]),
+        tempDict={'prior':prior,'hyperparams':(pbound_low[i],pbound_up[i]),
                   'label':r'$S_i$','p0':amp,'e_p0':rms}
         paramsDict[f'param{i}'] = tempDict
     
@@ -415,13 +424,14 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,
     sampler = emcee.EnsembleSampler(Nens,ndims,logposterior,args=argslist)
 
     # Pass the initial samples and total number of samples required
-    sampler.run_mcmc(inisamples, Nsamples + Nburnin)
+    sampler.run_mcmc(inisamples,Nsamples+Nburnin)
 
     # Extract the samples (removing the burn-in)
-    samples_emcee = sampler.get_chain(flat=True, discard=Nburnin)
+    samples_emcee = sampler.get_chain(flat=True,discard=Nburnin)
 
     # Store the results.
-    popt = np.nanmean(samples_emcee,axis=0)
+    #popt = np.nanmean(samples_emcee,axis=0)
+    popt = np.nanmedian(samples_emcee,axis=0)
     perr = np.nanstd(samples_emcee,axis=0)
 
     if corner:
