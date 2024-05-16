@@ -73,7 +73,6 @@ def J2000_name(RA,DEC,verbose=False):
     JstringRA = coords.ra.hms
     JstringDEC = coords.dec.dms
 
-    #
     # Splitting the right ascension component into three parts.
     JRA_h = np.char.array(JstringRA[0].astype(int)).decode('UTF-8')
     JRA_m = np.char.array(JstringRA[1].astype(int)).decode('UTF-8')
@@ -85,6 +84,7 @@ def J2000_name(RA,DEC,verbose=False):
     JDEC_s = np.char.array(np.abs(np.rint(JstringDEC[2]).astype(int))).decode('UTF-8')
 
     J2000_names = np.chararray(RA.size,itemsize=14,unicode=True)
+    
     for i in range(RA.size):
         rah = check_string(JRA_h[i])
         ram = check_string(JRA_m[i])
@@ -105,9 +105,8 @@ def J2000_name(RA,DEC,verbose=False):
 
     return J2000_names
 
-
-def write_model_table(popt,perr,constants,w,ID,
-                      alpha=None,deconv=False,outname=None):
+def write_model_table(popt,perr,psfParams,w,ID,
+                      alpha=None,deconv=False,outname=None,precision=6):
     """
     Converts model Gaussian fit parameters and errors to Astropy tabel object. 
     Add option for saving the table.
@@ -120,7 +119,7 @@ def write_model_table(popt,perr,constants,w,ID,
     perr : numpy array
         Numpy array containing the Gaussian fit parameter errors, should have 
         two axes.
-    header : astropy object
+    psfParams : astropy object
         Astropy image header object. Contains information about the image. 
     ID : int 
         Integer ID for the input SNR.
@@ -145,14 +144,11 @@ def write_model_table(popt,perr,constants,w,ID,
     from gaus_decv import deconv2,deconv_gauss
 
     # Defining the conversion factor. Calculating the integrated flux density.
-    a_psf = constants[3] # [deg]
-    b_psf = constants[4] # [deg]
-    dx = constants[2] # pixel size in degrees [deg]
+    dx = np.abs(w.wcs.cd[0,0]) # pixel size in degrees [deg]
+    a_psf,b_psf,BPA = psfParams
 
     # Calculating the pixel and beam solid angles.
-    Omega_pix = dx**2 #[deg^2]
-    Omega_beam = np.pi*a_psf*b_psf/(4*np.log(2)) #[deg^2]
-    dOmega = Omega_pix/Omega_beam
+    omegaPSF = Beam_solid_angle(a_psf,b_psf,BPA)
 
     # ensuring type.
     popt = popt.astype('float')
@@ -163,177 +159,96 @@ def write_model_table(popt,perr,constants,w,ID,
     col_names = ['ID','Name','RA','u_RA','DEC','u_DEC','Sint','u_Sint',
                  'Maj','u_Maj','Min','u_Min','PA','u_PA']
 
-    if len(np.shape(popt)) > 1:
+    if len(np.shape(popt)) == 1:
+        # Setting popt to be of appropriate shape.
+        popt = np.ones((1,popt.size))*popt[None,:]
+        perr = np.ones((1,popt.size))*perr[None,:]
 
-        # Creating columns.
-        # Setting the centroid X and Y pixel values.
-        X_pos = popt[:,1] # [pix]
-        u_X = perr[:,1] # [pix]
+    # Creating columns.
+    # Setting the centroid X and Y pixel values.
+    X_pos = popt[:,1] # [pix]
+    u_X = perr[:,1] # [pix]
 
-        Y_pos = popt[:,2] # [pix]
-        u_Y = perr[:,2] # [pix]
+    Y_pos = popt[:,2] # [pix]
+    u_Y = perr[:,2] # [pix]
 
-        # Getting the RA and DEC information from the WCS.
-        # Pixels offset by 1.
-        RA, DEC = w.wcs_pix2world(X_pos + 1,Y_pos + 1, 1)
+    # Getting the RA and DEC information from the WCS.
+    # Pixels offset by 1.
+    RA, DEC = w.wcs_pix2world(X_pos + 1,Y_pos + 1, 1)
 
-        # Name column, SNID and the component number.
-        Names = J2000_name(RA,DEC)
+    # Name column, SNID and the component number.
+    Names = J2000_name(RA,DEC)
 
-        u_RA = RA*(u_X/X_pos)*u.degree # FK5 [deg]
-        RA = RA*u.degree # FK5 [deg]
+    u_RA = RA*(u_X/X_pos)*u.degree # FK5 [deg]
+    RA = RA*u.degree # FK5 [deg]
 
-        #
-        u_DEC = np.abs(DEC*u_Y/Y_pos)*u.degree # FK5 [deg]
-        DEC = DEC*u.degree # FK5 [deg]
+    #
+    u_DEC = np.abs(DEC*u_Y/Y_pos)*u.degree # FK5 [deg]
+    DEC = DEC*u.degree # FK5 [deg]
 
-        # Model ID associates model components with one source.
-        ModelID = (np.ones(len(Names))*ID).astype('int')
+    # Model ID associates model components with one source.
+    ModelID = (np.ones(len(Names))*ID).astype('int')
 
-        ## Calculating the integrated flux density.
-        Sint = popt[:,0]*(2*np.pi*popt[:,3]*popt[:,4])*dOmega*u.Jy # [Jy]
+    # Getting the Major and Minor axes.
+    Maj = sig2FWHM(popt[:,3])*(dx*60)*u.arcmin # [arcmins]
+    u_Maj = Maj*(perr[:,3]/popt[:,3]) # [arcmins]
+    Min = sig2FWHM(popt[:,4])*(dx*60)*u.arcmin # [arcmins]
+    u_Min = Min*(perr[:,4]/popt[:,4]) # [arcmins]
+
+    ## Calculating the integrated flux density.
+    Sint,u_Sint = Sint_calc(popt[:,0],Maj.value/60,Min.value/60,omegaPSF,
+                            e_Speak=perr[:,0],e_Maj=u_Min.value/60,
+                            e_Min=u_Maj.value/60)
+    Sint = Sint*u.Jy
+    u_Sint = u_Sint*u.Jy
+
+    # Rotate the position angle so it matches the cosmological ref frame.
+    PA = (270 - np.degrees(popt[:,5]))*u.deg # [deg]
+    u_PA = (perr[:,5])*u.deg # [deg]
+
+    # Constructing the table list structure. Rounding for formatting.
+    proto_table = [ModelID,Names,np.round(RA,precision),
+                    np.round(u_RA,precision),np.round(DEC,precision),
+                    np.round(u_DEC,precision),np.round(Sint,precision), 
+                    np.round(u_Sint,precision),np.round(Maj,precision),
+                    np.round(u_Maj,precision),np.round(Min,precision),
+                    np.round(u_Min,precision),np.round(PA,precision),
+                    np.round(u_PA,precision)]
+
+    if deconv:
+        # If deconvolution option is true, calculate the deconvolved params.
+        sigxpsf_pix = FWHM2sig(a_psf)/dx
+        sigypsf_pix = FWHM2sig(b_psf)/dx
+        theta_PA = paRA2paXY(BPA)
+        Maj_DC,Min_DC,PA_DC = deconv_gauss((sigxpsf_pix,sigypsf_pix,theta_PA),
+                                            (popt[:,3],popt[:,4],np.degrees(popt[:,5]))) 
         
-        # Need to recalculate.
-        u_Sint = Sint*(perr[:,0]/popt[:,0]) # [Jy]
-        Sint = Sint
-
-        # Getting the Major and Minor axes.
-        Maj = sig2FWHM(popt[:,3])*(dx*60)*u.arcmin # [arcmins]
-        u_Maj = Maj*(perr[:,3]/popt[:,3]) # [arcmins]
-        Min = sig2FWHM(popt[:,4])*(dx*60)*u.arcmin # [arcmins]
-        u_Min = Min*(perr[:,4]/popt[:,4]) # [arcmins]
-
+        # Converting the DC Major and Minor axes.
+        Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
+        Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
         # Rotate the position angle so it matches the cosmological ref frame.
-        PA = (270 - np.degrees(popt[:,5]))*u.deg # [deg]
-        u_PA = (perr[:,5])*u.deg # [deg]
+        PA_DC = paXYpaRA2(np.degrees(PA_DC))*u.deg # [deg]
 
-        # Constructing the table list structure. Rounding for formatting.
-        proto_table = [ModelID,Names,np.round(RA,5),np.round(u_RA,7), 
-                       np.round(DEC,5),np.round(u_DEC,7),np.round(Sint,3), 
-                       np.round(u_Sint,5),np.round(Maj,4),np.round(u_Maj,5),
-                       np.round(Min,4),np.round(u_Min,5),
-                       np.round(PA,3),np.round(u_PA,5)]
+        # Appending to the proto_table.
+        proto_table.append(np.round(Maj_DC,precision))
+        proto_table.append(np.round(Min_DC,precision))
+        proto_table.append(np.round(PA_DC,precision))
+        # Add the PSF params so you can check the deconvolution.
+        proto_table.append(np.round(np.ones(RA.size)*a_psf*60,precision)*u.arcmin)
+        proto_table.append(np.round(np.ones(RA.size)*b_psf*60,precision)*u.arcmin)
+        proto_table.append(np.round(np.ones(RA.size)*BPA,precision)*u.deg)
+        col_names.append('Maj_DC')
+        col_names.append('Min_DC')
+        col_names.append('PA_DC')
+        col_names.append('Maj_PSF')
+        col_names.append('Min_PSF')
+        col_names.append('PA_PSF')
 
-        if deconv:
-            # If deconvolution option is true, calculate the deconvolved params.
-            sigxpsf_pix = FWHM2sig(a_psf)/dx
-            sigypsf_pix = FWHM2sig(b_psf)/dx
-            BPA = constants[-1]
-            theta_PA = 360 - (BPA + 90)
-            Maj_DC,Min_DC,PA_DC = deconv_gauss((sigxpsf_pix,sigypsf_pix,theta_PA),
-                                               (popt[:,3],popt[:,4],np.degrees(popt[:,5]))) 
-            
-            # Converting the DC Major and Minor axes.
-            Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
-            Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
-            # Rotate the position angle so it matches the cosmological ref frame.
-            PA_DC = (270 - np.degrees(PA_DC))*u.deg # [deg]
-
-            # Appending to the proto_table.
-            proto_table.append(np.round(Maj_DC,3))
-            proto_table.append(np.round(Min_DC,3))
-            proto_table.append(np.round(PA_DC,3))
-            # Add the PSF params so you can check the deconvolution.
-            proto_table.append(np.round(np.ones(RA.size)*a_psf*60,3)*u.arcmin)
-            proto_table.append(np.round(np.ones(RA.size)*b_psf*60,3)*u.arcmin)
-            proto_table.append(np.round(np.ones(RA.size)*BPA,3)*u.deg)
-            col_names.append('Maj_DC')
-            col_names.append('Min_DC')
-            col_names.append('PA_DC')
-            col_names.append('Maj_PSF')
-            col_names.append('Min_PSF')
-            col_names.append('PA_PSF')
-
-        if np.any(alpha):
-            proto_table.append(alpha)
-            col_names.append('alpha')    
-
-    else:
-        # Creating columns.
-        # Setting the centroid X and Y pixel values.
-        X_pos = (popt[1]) # [pix]
-        u_X = perr[1] # [pix]
-
-        Y_pos = (popt[2]) # [pix]
-        u_Y = perr[2] # [pix]
-
-        # Getting the RA and DEC information from the WCS.
-        RA, DEC = w.wcs_pix2world(X_pos + 1,Y_pos + 1, 1)
-
-        # Name column, SNID and the component number.
-        Names = J2000_name(RA,DEC)
-
-        RA = RA*u.degree # FK5 [deg]
-        u_RA = RA*(u_X/X_pos) # FK5 [deg]
-
-        DEC = DEC*u.degree # FK5 [deg]
-        u_DEC = np.abs(DEC*(u_Y/Y_pos)) # FK5 [deg]
-
-        # Model ID associates model components with one source.
-        ModelID = int(ID)
-
-        ## Calculating the integrated flux density.
-        Sint = popt[0]*(2*np.pi*popt[3]*popt[4])*dOmega*u.Jy # [Jy]
-
-        # Need to recalculate.
-        u_Sint = Sint*(perr[0]/popt[0]) # [Jy]
-
-        Maj = popt[3]*(2*np.sqrt(2*np.log(2)))*(dx*60)*u.arcmin # [arcmins]
-        u_Maj = Maj*(perr[3]/popt[3]) # [arcmins]
-
-        Min = popt[4]*(2*np.sqrt(2*np.log(2)))*(dx*60)*u.arcmin # [arcmins]
-        u_Min = Min*(perr[4]/popt[4]) # [arcmins]
-
-        # Rotate the position angle so it matches the cosmological ref frame.
-        #PA = np.degrees(popt[5])*u.deg # [deg]
-        PA = (270 - np.degrees(popt[5]))*u.deg # [deg]
-        u_PA = (perr[5])*u.deg # [deg]
-
-        # Constructing the table list structure.
-        proto_table = [[ModelID],[Names],[np.round(RA,3)],[np.round(u_RA,5)], 
-                       [np.round(DEC,3)],[np.round(u_DEC,4)],[np.round(Sint,3)], 
-                       [np.round(u_Sint,5)],[np.round(Maj,3)],[np.round(u_Maj,5)],
-                       [np.round(Min,3)],[np.round(u_Min,5)],
-                       [np.round(PA,3)],[np.round(u_PA,5)]]
-
-        if deconv:
-            # If deconvolution option is true, calculate the deconvolved params.
-            sigxpsf_pix = FWHM2sig(a_psf)/dx
-            sigypsf_pix = FWHM2sig(b_psf)/dx
-            BPA = constants[-1]
-            theta_PA = 360 - (BPA + 90)
-
-            Maj_DC,Min_DC,PA_DC = deconv_gauss((sigxpsf_pix,sigypsf_pix,theta_PA),
-                                               (popt[3],popt[4],np.degrees(popt[5])))
-            
-            # Converting the DC Major and Minor axes.
-            Maj_DC = sig2FWHM(Maj_DC)*(dx*60)*u.arcmin # [arcmins]
-            Min_DC = sig2FWHM(Min_DC)*(dx*60)*u.arcmin # [arcmins]
-            # Rotate the position angle so it matches the cosmological ref frame.
-            #PA_DC = np.degrees(PA_DC)*u.deg # [deg]
-            PA_DC = (270 - np.degrees(PA_DC))*u.deg # [deg]
-
-            # Appending to the proto_table.
-            proto_table.append([np.round(Maj_DC,3)])
-            proto_table.append([np.round(Min_DC,3)])
-            proto_table.append([np.round(PA_DC,3)])
-            # Add the PSF params so you can check the deconvolution.
-            proto_table.append([np.round(a_psf*60,3)*u.arcmin])
-            proto_table.append([np.round(b_psf*60,3)*u.arcmin])
-            proto_table.append([np.round(theta_PA,3)*u.deg])
-            col_names.append('Maj_DC')
-            col_names.append('Min_DC')
-            col_names.append('PA_DC')
-            col_names.append('Maj_PSF')
-            col_names.append('Min_PSF')
-            col_names.append('PA_PSF')
-
-        if np.any(alpha):
-            proto_table.append([alpha])
-            col_names.append('alpha')    
+    if np.any(alpha):
+        proto_table.append(alpha)
+        col_names.append('alpha')    
 
     t = QTable(proto_table,names=col_names,meta={'name':'first table'})
-    #t = Table(proto_table,names=col_names,meta={'name':'first table'})
 
     if outname:
         # Condition for writing the file.
@@ -389,7 +304,7 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
                     'Check FITS header.'
             raise KeyError(err_msg)
 
-    x_vec, y_vec = w.wcs_world2pix(RA,DEC,pixoffset)
+    x_vec,y_vec = w.wcs_world2pix(RA,DEC,pixoffset)
 
     #if np.any(Maj) and np.any(Min):
     if np.any(Maj.size) and np.any(Min.size):
