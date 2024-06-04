@@ -254,6 +254,33 @@ def power_law(freq,S0,alpha,freq0=160e6):
     Snu = S0*(freq/freq0)**(alpha)
     return Snu
 
+def curved_power_law(freq,S0,alpha,beta,freq0=160e6):
+    """
+    Power law function for calculating flux density.
+
+    Parameters:
+    ----------
+    freq : float, or numpy ndarray
+        Float or vector of frequencies. Typcally normalised by some reference
+        frequency nu0. If not given it is assumed to be nu=1Hz.
+    S0 : float
+        This is the flux density at the reference frequency.
+    alpha : float
+        This is the spectral index.
+    beta : float
+        Curvature.
+    freq0 : float, default=160e6
+        Reference frequency in Hz.
+            
+    Returns:
+    ----------
+    Snu : float, or numpy ndarray
+        Flux density at frequency nu.
+    """
+
+    Snu = S0*((freq/freq0)**(alpha))*np.exp(beta*(np.log(freq/freq0))**2)
+    return Snu
+
 def jac_power_law(freq,S0,alpha,freq0=160e6):
     """
     Parameters:
