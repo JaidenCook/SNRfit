@@ -215,7 +215,7 @@ def loglikelihood(theta,data,sigma,xVec,model=power_law):
         if len(sigma.shape) > 1 and (sigma.shape[0]==sigma.shape[1]):
             # If the covariance matrix is given.
             Kinv = np.linalg.inv(sigma)
-            logl = -0.5*np.matmul(np.matmul(resid,Kinv),resid.T)
+            logl = -0.5*((resid @ Kinv) @ resid.T)
         else:
             # If only a vector of uncertainties is given.
             logl = -0.5 * np.sum((resid/sigma)**2)
@@ -331,7 +331,7 @@ def calc_logZ(sampler,thresh=None,Nburnin=500,norm=None):
 
     return logZ
 
-def plotposts(samples,paramsDict,popt=None, **kwargs):
+def plotposts(samples,paramsDict,popt=None,**kwargs):
     """
     Function to plot posteriors using corner.py and scipy's gaussian KDE 
     function.
@@ -348,12 +348,12 @@ def plotposts(samples,paramsDict,popt=None, **kwargs):
         else:
             pass
 
-    fig = corner.corner(samples, labels=labels, 
+    fig = corner.corner(samples,labels=labels, 
                         hist_kwargs={'density': True}, **kwargs)
 
-    # plot KDE smoothed version of distributions
-    for axidx, samps in zip([0, 3], samples.T):
-        kde = gaussian_kde(samps)
-        xvals = fig.axes[axidx].get_xlim()
-        xvals = np.linspace(xvals[0], xvals[1], 100)
-        fig.axes[axidx].plot(xvals, kde(xvals), color='firebrick')
+    ## plot KDE smoothed version of distributions
+    #for axidx,samps in zip([0,3],samples.T):
+    #    kde = gaussian_kde(samps)
+    #    xvals = fig.axes[axidx].get_xlim()
+    #    xvals = np.linspace(xvals[0], xvals[1], 100)
+    #    fig.axes[axidx].plot(xvals,kde(xvals),color='firebrick')
