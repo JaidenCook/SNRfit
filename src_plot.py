@@ -447,14 +447,14 @@ def astro_plot_2D(image,wcs,figsize=(10,10),scatter_points=None,lognorm=False,
             ellipes = np.array([ellipes])
         for i in range(ellipes.shape[0]):
             #
-            etemp = Ellipse((ellipes[i,1],ellipes[i,2]),
+            etemp = Ellipse((ellipes[i,1]-1,ellipes[i,2]-1),
                             FWHM*ellipes[i,3],FWHM*ellipes[i,4],
                             360-np.degrees(ellipes[i,5]),fc='none',
                             edgecolor='r',lw=1.5)
             
             # Adding to axis.
             ax.add_artist(etemp)
-            ax.scatter(ellipes[i,1],ellipes[i,2],
+            ax.scatter(ellipes[i,1]-1,ellipes[i,2]-1,
                    color='r',s=point_area)
 
     if filename:
