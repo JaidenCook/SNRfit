@@ -105,8 +105,8 @@ def J2000_name(RA,DEC,verbose=False):
 
     return J2000_names
 
-def write_model_table(popt,perr,psfParams,w,ID,
-                      alpha=None,deconv=False,outname=None,precision=6):
+def write_model_table(popt,perr,psfParams,w,ID,alpha=None,deconv=False,
+                      outname=None,precision=6,pixoffset=1):
     """
     Converts model Gaussian fit parameters and errors to Astropy tabel object. 
     Add option for saving the table.
@@ -132,6 +132,11 @@ def write_model_table(popt,perr,psfParams,w,ID,
         models.
     outname : str
         Output filename. Default is None, if given writes an astropy fits file.
+    precision : int,
+        Precision to which to write out the table values.
+    pixoffset : int
+        Pixel origin for WCS, either 1 or 0. Should be 0, if x and y coordinates
+        taken from numpy array indices.
   
     Returns:
     ----------
@@ -166,15 +171,15 @@ def write_model_table(popt,perr,psfParams,w,ID,
 
     # Creating columns.
     # Setting the centroid X and Y pixel values.
-    X_pos = popt[:,1] # [pix]
+    X_pos = popt[:,1] + pixoffset # [pix]
     u_X = perr[:,1] # [pix]
 
-    Y_pos = popt[:,2] # [pix]
+    Y_pos = popt[:,2] + pixoffset# [pix]
     u_Y = perr[:,2] # [pix]
 
     # Getting the RA and DEC information from the WCS.
     # Pixels offset by 1.
-    RA, DEC = w.wcs_pix2world(X_pos + 1,Y_pos + 1, 1)
+    RA, DEC = w.wcs_pix2world(X_pos,Y_pos,pixoffset)
 
     # Name column, SNID and the component number.
     Names = J2000_name(RA,DEC)
