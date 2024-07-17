@@ -339,7 +339,7 @@ def fit_amp(xx,yy,data,params,rms=None,psfParams=None,perrcond=True,
 
 def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
                   Nsamples=1250,Nens=100,p0cond=False,corner=False,
-                  prior='uniform'):
+                  prior='uniform',pixoffset=0):
     """
     Function for fitting the amplitude of a Gaussian and no other parameters.
 
@@ -377,8 +377,8 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
     import emcee
 
     ampguess = params[:,0]
-    x0Vec = params[:,1]
-    y0Vec = params[:,2]
+    x0Vec = params[:,1] - pixoffset
+    y0Vec = params[:,2] - pixoffset
     sigxVec = params[:,3]
     sigyVec = params[:,4]
     PAVEC = params[:,5]
@@ -393,8 +393,9 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
         return zz
     
     if prior == 'uniform':
-        pbound_low = np.zeros(ampguess.size)
-        pbound_up = np.ones(ampguess.size)*np.max(ampguess)*100
+        #pbound_low = np.zeros(ampguess.size)
+        pbound_low = -1*np.ones(ampguess.size)*np.max(ampguess)*10
+        pbound_up = np.ones(ampguess.size)*np.max(ampguess)*10
     elif prior == 'lognormal':
         pbound_low = ampguess # mean.
         pbound_up = rms*np.ones(ampguess.size)
@@ -431,8 +432,12 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
 
     # Store the results.
     #popt = np.nanmean(samples_emcee,axis=0)
-    popt = np.nanmedian(samples_emcee,axis=0)
-    perr = np.nanstd(samples_emcee,axis=0)
+    if prior == 'lognormal':
+        popt = np.exp(np.nanmedian(samples_emcee,axis=0))
+        perr = np.nanstd(samples_emcee,axis=0)*np.abs(popt)
+    else:
+        popt = np.nanmedian(samples_emcee,axis=0)
+        perr = np.nanstd(samples_emcee,axis=0)
 
     if corner:
         # If True plot the samples.
