@@ -232,8 +232,10 @@ def footprint_mask(img,coords,footprint,verbose=False):
     Naxis = len(footprint)
     xfoot,yfoot = np.mgrid[0:Naxis,0:Naxis].astype(int)
 
-    xfoot = xfoot - int(Naxis/2) #+1#+ 1
-    yfoot = yfoot - int(Naxis/2) #+1#+ 1
+    #xfoot = xfoot-int(Naxis/2) #+1#+ 1
+    #yfoot = yfoot-int(Naxis/2) #+1#+ 1
+    xfoot = xfoot-int(Naxis/2) + 1#+ 1
+    yfoot = yfoot-int(Naxis/2) + 1#+ 1
 
     # Getting the index array.
     xind_arr = int(coords[0])-yfoot
@@ -264,7 +266,7 @@ def footprint_mask(img,coords,footprint,verbose=False):
     return mask
 
 def create_model_mask(imgShape,popt,
-                      thresh=0.375,wcs=None):
+                      thresh=0.375,wcs=None,**kwargs):
     """
     Take an input model and create a mask.
 
@@ -307,7 +309,8 @@ def create_model_mask(imgShape,popt,
     # Check the mask by plotting.
     if np.any(wcs):
         #
-        astro_plot_2D(maskImg,wcs,figsize=(7.5,6),scale=0.6,ellipes=popt)
+        astro_plot_2D(maskImg,wcs,figsize=(7.5,6),scale=0.6,
+                      ellipes=popt,**kwargs)
 
     return maskImg.astype(int)
 
@@ -636,7 +639,6 @@ def group_peaks(island_cube,peaks_vec):
     island_cube = island_cube*prime_vec[None,None,:]
 
     # Set all zero values to 1 so we can perform the product.
-    #island_cube[island_cube == 0] = 1
     island_cube[island_cube < 1] = 1
 
     # Creating the product slice.
@@ -679,16 +681,15 @@ def group_peaks(island_cube,peaks_vec):
             mask_list.append(source_mask)
     
     # Deleting the belnded sources from the lists.
-    for blendedID in blended_list:
-        sourceID_vec = np.delete(sourceID_vec,blendedID)
-        prime_vec = np.delete(prime_vec,blendedID)
+    blended_list = np.unique(np.concatenate(blended_list))
+    sourceID_vec = np.delete(sourceID_vec,blended_list)
+    prime_vec = np.delete(prime_vec,blended_list)
 
 
     for val in island_unique:
 
         # Find all coordinates that are factors of the product.
         coord_ind_vec = val % prime_vec
-        #print(coord_ind_vec)
 
         # All factors will have zero mod.
         if np.any(coord_ind_vec==0):
@@ -707,7 +708,6 @@ def group_peaks(island_cube,peaks_vec):
         # Accumulate the masks, will need these to get the data.
         # Might make this an optional output. Depends on use cases for function.
         mask_list.append(source_mask)
-
 
     return source_list,mask_list
 
