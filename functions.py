@@ -138,7 +138,8 @@ def Sint_calc(Speak,Maj,Min,omegaPSF,e_Speak=None,e_Maj=None,e_Min=None,
 
     # If any errors are given calculate the uncertainty in the flux density.
     if np.any(e_Speak) and np.any(e_Min) and np.any(e_Maj):
-        e_Sint=Sint*np.sqrt((e_Maj/Maj)**2 +(e_Min/Min)**2 +(e_Speak/Speak)**2)
+        e_Sint=np.abs(Sint)*np.sqrt((e_Maj/Maj)**2 +(e_Min/Min)**2 +\
+                                    (e_Speak/Speak)**2)
         
         return Sint, e_Sint
     else:
@@ -328,3 +329,77 @@ def matern_cov(r,sigma,r0=7.28e6):
 
     return k
 
+def KDEpy_1D_scaled(data,weights=None,x=None,bw_method='ISJ',Ndim=256,
+                    verbose=False):
+    """
+    For values with an order of magnitude of 6 or greater KDEpy FFTKDE fails due 
+    to lack of finite support. The solution is to scale the data so the 
+    bandwidth is 1. The solution is found in 
+    https://github.com/tommyod/KDEpy/issues/81. This is the same solution 
+    implemented in KDEpy_2D_scaled.
+    
+    Parameters
+    ----------
+    data : array : float
+        1D array of length (N_samples) containing the X.
+    weights : array : float
+        1D array of shape (N_samples,) containing the X samples weights.
+        Default is None.
+    x : array : float
+        2D array with diminsions (N,N) calculating the evenly spaced x grid.
+    bw_method : string
+        Bandwidth method, default is ISJ, other options are 'silvermans' and 
+        'scotts' method.
+    N_dim : int
+        Number of evaluations. The default is 256. This is given when x=None. 
+        This specifies the grid size. 
+    verbose : bool
+        If True print outputs, useful for testing. 
+
+    Returns
+    -------
+    y : array : float
+        1D array of the p(x) KDE estimated values.
+    """
+    from KDEpy.bw_selection import silvermans_rule, improved_sheather_jones
+    from KDEpy.bw_selection import scotts_rule
+    from KDEpy.FFTKDE import FFTKDE
+
+    # Compute the BW, scale, then scale back
+    if bw_method == 'silverman':
+        dataTemp = data[data != 0.0]
+        bw = silvermans_rule(dataTemp[:,None])
+    elif bw_method == 'scott':
+        dataTemp = data[data != 0.0]
+        #bw = scotts_rule(data[:,None])
+        bw = scotts_rule(dataTemp[:,None])
+    else:
+        # ISJ is the default method. 
+        dataTemp = data[data != 0.0]
+        bw = improved_sheather_jones(dataTemp[:,None])
+
+    if bw == 0.0:
+        raise ValueError('Bandwidth is zero...')
+
+    # Data is rescaled by the bandwidth. 
+    data = data/np.array([bw])
+
+    if verbose:
+        print('Bw method = %s' % bw_method)
+        print('bw = %5.3e' % bw)
+
+    if np.any(x):
+        # Case when grid is provided.
+        # Scaling the positions.
+        xscaled = x/np.array([bw])
+        yscaled = FFTKDE(bw=1).fit(data,weights=weights).evaluate(xscaled)
+        y = yscaled/bw
+        x = xscaled*bw
+    else:
+        # If a grid is not provided use auto_grid feature to calculate the 2D KDE.
+        xscaled,yscaled = FFTKDE(bw=1).fit(data,weights=weights).evaluate(Ndim)
+        
+        x = xscaled*np.array([bw])
+        y = yscaled/bw
+
+    return y
