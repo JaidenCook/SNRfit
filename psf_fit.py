@@ -22,7 +22,8 @@ from src_img import create_model_mask,footprint_mask,calc_footprint
 from src_fit import SNR_Gauss_fit
 
 
-def avg_psf(poptArr,e_poptArr,rms,boolcond=False,verbose=False):
+def avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
+            boolcond=False,verbose=False):
     """
     Calculate the average psf from an input array of fit values, their associated,
     errors, and the image rms.
@@ -53,6 +54,10 @@ def avg_psf(poptArr,e_poptArr,rms,boolcond=False,verbose=False):
     e_aMod = sig2FWHM(e_poptArr[:,3])*dx
     e_bMod = sig2FWHM(e_poptArr[:,4])*dx
     e_paMode = e_poptArr[:,-1]
+
+    BMAJ,BMIN,theta_PA = psfParams
+
+    omegaPSF = Beam_solid_angle(BMAJ,BMIN,degrees=True)
     
     paModRatio = poptArr[:,-1]/np.radians(theta_PA)
     beamRatio = Beam_solid_angle(aMod,bMod,degrees=True)/omegaPSF
@@ -85,7 +90,7 @@ def avg_psf(poptArr,e_poptArr,rms,boolcond=False,verbose=False):
         return avgPSFparams
 
 
-def fit_psf(pointCoordArr,image,psfParams,maskList,rms,
+def fit_psf(pointCoordArr,image,psfParams,maskList,rms,dx,
             verbose=False,boolcond=False):
     """
     Fit the PSF for each of the input sources, assuming they are point sources.
@@ -122,6 +127,7 @@ def fit_psf(pointCoordArr,image,psfParams,maskList,rms,
     
     if pointCoordArr.shape[0] > 20:
         maskList = maskList[:20]
+        pointCoordArr = pointCoordArr[:20,:]
         NpointSource = 20
     else:
         NpointSource = pointCoordArr.shape[0]
@@ -130,7 +136,8 @@ def fit_psf(pointCoordArr,image,psfParams,maskList,rms,
     e_poptArr = np.zeros((NpointSource,6))
     for ind,mask in enumerate(maskList):
 
-        imgMasked = np.copy(image) - bkg
+        #imgMasked = np.copy(image) - bkg
+        imgMasked = np.copy(image)
         imgMasked[mask==False] = np.NaN
         
         # Getting the data.
@@ -147,13 +154,14 @@ def fit_psf(pointCoordArr,image,psfParams,maskList,rms,
         
     # Calculate the average psf.
     if boolcond:
-        avgPSFparams,boolVec = avg_psf(poptArr,e_poptArr,rms,
+        avgPSFparams,boolVec = avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
                                        verbose=verbose,boolcond=boolcond)
         pointCoordArr = pointCoordArr[boolVec,:]
 
         return avgPSFparams,pointCoordArr
     else:
-        avgPSFparams = avg_psf(poptArr,e_poptArr,rms,verbose=verbose)
+        avgPSFparams = avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
+                               verbose=verbose)
 
         return avgPSFparams
 
