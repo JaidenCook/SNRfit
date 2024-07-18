@@ -181,6 +181,9 @@ def calc_footprint(a,b,pa,Naxis=None,thresh=0.25):
         if Naxis % 2 == 0:
             Naxis += 1
         
+        # Padding.
+        Naxis += 2
+        
     xxPSF,yyPSF = np.mgrid[0:Naxis,0:Naxis]
 
     # Centre coordinates.
@@ -678,10 +681,11 @@ def group_peaks(island_cube,peaks_vec):
             mask_list.append(source_mask)
     
     # Deleting the belnded sources from the lists.
-    blended_list = np.unique(np.concatenate(blended_list))
-    sourceID_vec = np.delete(sourceID_vec,blended_list)
-    prime_vec = np.delete(prime_vec,blended_list)
-
+    if len(blended_list) > 1:
+        # If there are no blended sources then skip this step.
+        blended_list = np.unique(np.concatenate(blended_list))
+        sourceID_vec = np.delete(sourceID_vec,blended_list)
+        prime_vec = np.delete(prime_vec,blended_list)
 
     for val in island_unique:
 
