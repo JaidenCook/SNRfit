@@ -266,7 +266,7 @@ def footprint_mask(img,coords,footprint,verbose=False):
     return mask
 
 def create_model_mask(imgShape,popt,
-                      thresh=0.375,wcs=None,**kwargs):
+                      thresh=0.375,degrees=False,wcs=None,**kwargs):
     """
     Take an input model and create a mask.
 
@@ -292,6 +292,8 @@ def create_model_mask(imgShape,popt,
     # Initialise the mask image. 
     maskImg = np.zeros(imgShape)
     for i,pa in enumerate(popt[:,5]):
+        if degrees:
+            pa = np.radians(pa)
         
         # Calculating the footprint.
         footprint = calc_footprint(sig2FWHM(popt[i,3]),sig2FWHM(popt[i,4]),pa,
@@ -310,7 +312,7 @@ def create_model_mask(imgShape,popt,
     if np.any(wcs):
         #
         astro_plot_2D(maskImg,wcs,figsize=(7.5,6),scale=0.6,
-                      ellipes=popt,**kwargs)
+                      ellipes=popt,degrees=degrees,**kwargs)
 
     return maskImg.astype(int)
 
