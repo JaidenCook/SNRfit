@@ -162,7 +162,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 # // This function needs to be refactored. 
 # Refactor this to remove the constants, replace with psfparams.
 def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
-                  rms=None,perrcond=True):
+                  rms=None,perrcond=True,verbose=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -209,7 +209,8 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
         # If given calculate the covariance matrix.
         psfParams = [sigxPSF,sigyPSF,PA_psf]
         sigma = calc_covMatrix(xx,yy,rms,psfParams)
-        print('Covariance matrix calculated...')
+        if verbose:
+            print('Covariance matrix calculated...')
     else:
         sigma=None
     
