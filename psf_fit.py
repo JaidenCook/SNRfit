@@ -156,7 +156,7 @@ def fit_psf(pointCoordArr,image,psfParams,maskList,rms,dx,
     if boolcond:
         avgPSFparams,boolVec = avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
                                        verbose=verbose,boolcond=boolcond)
-        pointCoordArr = pointCoordArr[boolVec,:]
+        pointCoordArr[boolVec,:2] = poptArr[boolVec,1:3][:,::-1]
 
         return avgPSFparams,pointCoordArr
     else:
