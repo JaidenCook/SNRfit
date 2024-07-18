@@ -181,21 +181,16 @@ def calc_footprint(a,b,pa,Naxis=None,thresh=0.25):
         if Naxis % 2 == 0:
             Naxis += 1
         
-    xx_psf,yy_psf = np.mgrid[0:Naxis,0:Naxis]
-
-    # Should be in degrees. This is for consistency purposes.
-    #pa = np.radians(pa)
-    # Should be in radians. 
-    pa = pa
+    xxPSF,yyPSF = np.mgrid[0:Naxis,0:Naxis]
 
     # Centre coordinates.
     x0 = int(Naxis/2)
     y0 = int(Naxis/2)
 
     # Calculate the footprint.
-    footprint =  Gaussian2D((xx_psf,yy_psf), 1, 
-                            x0, y0, FWHM2sig(a), 
-                            FWHM2sig(b), pa)
+    footprint =  Gaussian2D((xxPSF,yyPSF),1, 
+                            x0,y0,FWHM2sig(a), 
+                            FWHM2sig(b),pa)
     
     # Setting the footprint values.
     footprint[footprint >= thresh] = 1.
@@ -227,30 +222,30 @@ def footprint_mask(img,coords,footprint,verbose=False):
     """
     # Initialising the mask.
     mask = np.zeros(img.shape)
+    X,Y = img.shape
 
     # Getting the footprint coordinates.
     Naxis = len(footprint)
     xfoot,yfoot = np.mgrid[0:Naxis,0:Naxis].astype(int)
 
-    #xfoot = xfoot-int(Naxis/2) #+1#+ 1
-    #yfoot = yfoot-int(Naxis/2) #+1#+ 1
     xfoot = xfoot-int(Naxis/2) + 1#+ 1
     yfoot = yfoot-int(Naxis/2) + 1#+ 1
 
     # Getting the index array.
-    xind_arr = int(coords[0])-yfoot
-    yind_arr = int(coords[1])-xfoot
-
+    xind_arr = int(coords[0])+yfoot
+    yind_arr = int(coords[1])+xfoot
+    #xind_arr = int(coords[0])-yfoot
+    #yind_arr = int(coords[1])-xfoot
 
     # We don't want any of the negatives, this will cause wrapping.
-    yind_arr = yind_arr[xind_arr > 0]
-    footprint = footprint[xind_arr > 0]
-    xind_arr = xind_arr[xind_arr > 0]
+    yind_arr = yind_arr[(xind_arr > 0)&(xind_arr < X)]
+    footprint = footprint[(xind_arr > 0)&(xind_arr < X)]
+    xind_arr = xind_arr[(xind_arr > 0)&(xind_arr < X)]
 
     # Performing the same negative operation.
-    xind_arr = xind_arr[yind_arr > 0]
-    footprint = footprint[yind_arr > 0]
-    yind_arr = yind_arr[yind_arr > 0]
+    xind_arr = xind_arr[(yind_arr > 0)&(yind_arr < Y)]
+    footprint = footprint[(yind_arr > 0)&(yind_arr < Y)]
+    yind_arr = yind_arr[(yind_arr > 0)&(yind_arr < Y)]
 
     # Only care about locations where the footprint is not zero.
     xind_arr = xind_arr[footprint > 0]
