@@ -228,8 +228,8 @@ def footprint_mask(img,coords,footprint,verbose=False):
     Naxis = len(footprint)
     xfoot,yfoot = np.mgrid[0:Naxis,0:Naxis].astype(int)
 
-    xfoot = xfoot-int(Naxis/2) + 1#+ 1
-    yfoot = yfoot-int(Naxis/2) + 1#+ 1
+    xfoot = xfoot-int(Naxis/2) + 1
+    yfoot = yfoot-int(Naxis/2) + 1
 
     # Getting the index array.
     xind_arr = int(coords[0])+yfoot
