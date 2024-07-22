@@ -255,6 +255,11 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
         pguess[:,3][coords[:,2]>sigxPSF] = coords[:,2][coords[:,2]>sigxPSF]
         pguess[:,4][coords[:,2]>sigyPSF] = coords[:,2][coords[:,2]>sigyPSF]
 
+        # Check that none of the guess Gaussian sizes are larger than the image.
+        # If so set them to be the same size as the Max_major value.
+        pguess[:,3][coords[:,2]>Max_major] = Max_major
+        pguess[:,4][coords[:,2]>Max_major] = Max_major
+
     # Specifying the lower fit bounds for each Gaussian.
     pbound_low = np.array([0.0,xlow,ylow,sigxPSF,sigyPSF,0.0]) 
 
@@ -264,9 +269,9 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
     # Getting the fit parameters, and their errors.
-    popt, pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
-                                pbound_low=pbound_low,pbound_up=pbound_up,
-                                sigma=sigma)
+    popt,pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
+                               pbound_low=pbound_low,pbound_up=pbound_up,
+                               sigma=sigma)
     
     if perrcond:
         pcov = np.sqrt(np.diag(pcov)).reshape(np.shape(pguess))
@@ -434,8 +439,10 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
     # Store the results.
     #popt = np.nanmean(samples_emcee,axis=0)
     if prior == 'lognormal':
-        popt = np.exp(np.nanmedian(samples_emcee,axis=0))
-        perr = np.nanstd(samples_emcee,axis=0)*np.abs(popt)
+        popt = np.nanmedian(samples_emcee,axis=0)
+        #popt = np.exp(np.nanmedian(samples_emcee,axis=0))
+        perr = np.nanstd(samples_emcee,axis=0)
+        #perr = np.nanstd(samples_emcee,axis=0)*np.abs(popt)
     else:
         popt = np.nanmedian(samples_emcee,axis=0)
         perr = np.nanstd(samples_emcee,axis=0)
