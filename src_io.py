@@ -153,7 +153,7 @@ def write_model_table(popt,perr,psfParams,w,ID,alpha=None,deconv=False,
     a_psf,b_psf,BPA = psfParams
 
     # Calculating the pixel and beam solid angles.
-    omegaPSF = Beam_solid_angle(a_psf,b_psf,BPA)
+    omegaPSF = Beam_solid_angle(a_psf,b_psf)
 
     # ensuring type.
     popt = popt.astype('float')
