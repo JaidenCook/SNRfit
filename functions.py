@@ -146,7 +146,7 @@ def Sint_calc(Speak,Maj,Min,omegaPSF,e_Speak=None,e_Maj=None,e_Min=None,
         return Sint
 
 
-def Gaussian2D(xdata_tuple, amplitude, x0, y0, sigma_x, sigma_y, theta):
+def Gaussian2D(xdata_tuple,amplitude,x0,y0,sigma_x,sigma_y,theta):
     """
     Generalised 2DGaussian function.
     

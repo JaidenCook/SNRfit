@@ -20,6 +20,8 @@ import numpy as np
 from functions import FWHM2sig,Beam_solid_angle,sig2FWHM
 from src_img import create_model_mask,footprint_mask,calc_footprint
 from src_fit import SNR_Gauss_fit
+from src_plot import astro_plot_2D
+import matplotlib.pyplot as plt
 
 
 def avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
@@ -91,7 +93,7 @@ def avg_psf(poptArr,e_poptArr,rms,psfParams,dx,
 
 
 def fit_psf(pointCoordArr,image,psfParams,maskList,rms,dx,
-            verbose=False,boolcond=False):
+            verbose=False,boolcond=False,w=None):
     """
     Fit the PSF for each of the input sources, assuming they are point sources.
     These are then averaged with a different function that returns the averaged
@@ -131,6 +133,17 @@ def fit_psf(pointCoordArr,image,psfParams,maskList,rms,dx,
         NpointSource = 20
     else:
         NpointSource = pointCoordArr.shape[0]
+
+    # Need to remove sources which have 0 value coordinates. These fits will
+    # fail.
+    #if np.any(pointCoordArr[:,0]==0):
+    #    delInds = np.arange(NpointSource)[pointCoordArr[:,0]==0]
+    #    pointCoordArr = np.delete(pointCoordArr,delInds,axis=0)
+    #if np.any(pointCoordArr[:,1]==0):
+    #    delInds = np.arange(NpointSource)[pointCoordArr[:,1]==0]
+    #    pointCoordArr = np.delete(pointCoordArr,delInds,axis=0)
+    
+    NpointSource = pointCoordArr.shape[0]
 
     poptArr = np.zeros((NpointSource,6))
     e_poptArr = np.zeros((NpointSource,6))
