@@ -105,8 +105,8 @@ def J2000_name(RA,DEC,verbose=False):
 
     return J2000_names
 
-def write_model_table(popt,perr,psfParams,w,ID,alpha=None,deconv=False,
-                      outname=None,precision=6,pixoffset=1):
+def write_model_table(popt,perr,psfParams,w,ID,Names=None,alpha=None,
+                      deconv=False,outname=None,precision=6,pixoffset=1):
     """
     Converts model Gaussian fit parameters and errors to Astropy tabel object. 
     Add option for saving the table.
@@ -179,7 +179,7 @@ def write_model_table(popt,perr,psfParams,w,ID,alpha=None,deconv=False,
 
     # Getting the RA and DEC information from the WCS.
     # Pixels offset by 1.
-    RA, DEC = w.wcs_pix2world(X_pos,Y_pos,pixoffset)
+    RA,DEC = w.wcs_pix2world(X_pos,Y_pos,pixoffset)
 
     # Name column, SNID and the component number.
     Names = J2000_name(RA,DEC)
@@ -258,6 +258,7 @@ def write_model_table(popt,perr,psfParams,w,ID,alpha=None,deconv=False,
     if outname:
         # Condition for writing the file.
         # Default returns table.
+        print(f'File saved {outname}')
         t.write(outname,overwrite=True)
 
     return t
@@ -311,8 +312,8 @@ def deg_2_pixel(w,header,RA,DEC,Maj=None,Min=None,pixoffset=1):
 
     x_vec,y_vec = w.wcs_world2pix(RA,DEC,pixoffset)
 
-    #if np.any(Maj) and np.any(Min):
-    if np.any(Maj.size) and np.any(Min.size):
+    if np.any(Maj) and np.any(Min):
+    #if np.any(Maj.size) and np.any(Min.size):
         Maj_pix = Maj/dx
         Min_pix = Min/dx
 
