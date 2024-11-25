@@ -142,15 +142,21 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
     
     if np.any(pbound_low) and np.any(pbound_up):
         # If bounds supplied.
-        popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
-                                bounds=(pbound_low.ravel(),pbound_up.ravel()),
-                                maxfev=maxfev,sigma=sigma)
-                                #,method="dogbox"
+        try:
+            popt,pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
+                                    bounds=(pbound_low.ravel(),pbound_up.ravel()),
+                                    maxfev=maxfev,sigma=sigma)
+        except ValueError:
+            #print(pbound_low.ravel())
+            print(pguess.ravel()[1::6]-pbound_low.ravel()[1::6])
+            print(pguess.ravel()[2::6]-pbound_low.ravel()[2::6])
+            #print(pbound_up.ravel())
+            errMsg = f"`x0` is infeasible."
+            raise ValueError(errMsg)
     else:
         # If no bounds supplied.
         popt, pcov = opt.curve_fit(func,(xx,yy),data.ravel(),p0=pguess.ravel(),
                                 maxfev=maxfev,sigma=sigma)
-
     
     popt = popt.reshape(np.shape(pguess)) # Fit parameters.
     
@@ -161,7 +167,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 
 # // This function needs to be refactored. 
 # Refactor this to remove the constants, replace with psfparams.
-def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
+def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=1,
                   rms=None,perrcond=True,verbose=False):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
@@ -184,7 +190,7 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=0.125,
         Gaussian component x,y position array, has dimension 2.
     maj_min : tuple
         Contains the major and minor axis of the SNR in arcminutes.
-    maj_frac : float, default=0.125
+    maj_frac : float, default=1
         Fractional size limit of fit Gaussians, as a fraction of the Major axis. 
     rms : float, default=None,
         If given calculate the covariance matrix.
@@ -389,6 +395,7 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
     sigyVec = params[:,4]
     PAVEC = params[:,5]
     xdata_tuple = (xx.ravel(),yy.ravel())
+    #print(x0Vec,y0Vec)
 
     def NDGauss_amp(xdata_tuple,ampVec):
         
@@ -412,7 +419,7 @@ def fit_amp_bayes(xx,yy,data,params,rms=None,psfParams=None,Nburnin=500,
     paramsDict = {}
     for i,amp in enumerate(ampguess):
         tempDict={'prior':prior,'hyperparams':(pbound_low[i],pbound_up[i]),
-                  'label':r'$S_i$','p0':amp,'e_p0':rms}
+                  'label':rf'$S_{i}$','p0':amp,'e_p0':rms}
         paramsDict[f'param{i}'] = tempDict
     
 
