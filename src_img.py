@@ -314,7 +314,7 @@ def create_model_mask(imgShape,popt,
 
     return maskImg.astype(int)
 
-def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
+def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
                 flood=True,**kwargs):
     """
     Function for determining the island around a given set of sources. 
@@ -333,9 +333,9 @@ def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
         2D numpy array containing the x and y coordinates of all peaks, as 
         well as the scale in terms of sigma. This is how large the source 
         is expected to be. These should be in pixel units.
-    eps : float, default=0.7
+    tol_fac : float, default=0.7
         Epsilon is the tolerance factor, this is a relative factor, relative
-        to the peak intensity.
+        to the peak intensity. skimage documentation in flood_mask is scant.
     foot_params : tuple, default=None
         The major (a), minor (b) and position angle of
         an elliptical Gaussian. Should be the image PSF. Used to calculate
@@ -356,7 +356,6 @@ def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
     ## TODO
     # Need to figure out how to group point that are associated to the same
     # source. 
-
     if np.any(footparams):
         a,b,pa = footparams
         footprint = calc_footprint(a,b,pa)
@@ -387,7 +386,7 @@ def island_calc(img,peaks_vec,eps=0.7,footparams=None,verbose=False,
         ycoord = int(peaks_vec[ind,1])
         
         # Calculating unique tolerance.
-        tol = img[xcoord,ycoord]*eps
+        tol = img[xcoord,ycoord]*tol_fac
 
         # Calculating the flood mask. The byteswap is a bug fix for the
         # data types passed in scikit-images.
@@ -654,10 +653,11 @@ def group_peaks(island_cube,peaks_vec):
 
     ##
     # This should work for both island cases.
+    # Inefficient, but works. This loops through and finds the blended sources first, then 
+    # removes these.
     ##
     sourceID_vec = np.arange(Npeaks)
     for val in island_unique:
-
         # Find all coordinates that are factors of the product.
         coord_ind_vec = val % prime_vec
 
@@ -666,7 +666,7 @@ def group_peaks(island_cube,peaks_vec):
         if source_temp.size > 1:
             blended_list.append(source_temp)
 
-             # All factors will have zero mod.
+            # All factors will have zero mod.
             source_list.append(sourceID_vec[coord_ind_vec==0])
 
             # Get the source mask.
@@ -687,8 +687,8 @@ def group_peaks(island_cube,peaks_vec):
         sourceID_vec = np.delete(sourceID_vec,blended_list)
         prime_vec = np.delete(prime_vec,blended_list)
 
+    # For single sources.
     for val in island_unique:
-
         # Find all coordinates that are factors of the product.
         coord_ind_vec = val % prime_vec
 
