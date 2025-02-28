@@ -369,9 +369,11 @@ def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
     if np.any(footparams):
         sigmas = FWHM2sig(a)*np.ones(Npeaks)
         Npix_est = np.ceil(2*np.pi*FWHM2sig(a)*FWHM2sig(b))*np.ones(Npeaks)
-    elif peaks_vec[0,:].size == 3:
+    elif peaks_vec.shape[-1] >= 3:
+        print('Oath')
         # If the peak vec has a third column assume it is the size column.
-        sigmas = peaks_vec[:,-1]
+        #sigmas = peaks_vec[:,-1]
+        sigmas = peaks_vec[:,2]
         Npix_est = np.ceil(2*np.pi*sigmas**2) # Npixels estimate.
     else:
         Npix_est = None
@@ -393,8 +395,16 @@ def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
         if np.any(footprint) and not(flood):
             mask = footprint_mask(img,(xcoord,ycoord),footprint,verbose=False)
         else:
-            mask = flood_mask(img.byteswap().newbyteorder(),(xcoord,ycoord),
-                              footprint=footprint,tolerance=tol,**kwargs)
+            try:
+                # Can't remember why this fix was needed, something wrong with
+                # the bytes of the input numpy arrays in floodmask, this issue
+                # is inconsistent, so we have to live with this unfortunate
+                # try statement.
+                mask = flood_mask(img.byteswap().newbyteorder(),(xcoord,ycoord),
+                                footprint=footprint,tolerance=tol,**kwargs)
+            except ValueError:
+                mask = flood_mask(img,(xcoord,ycoord),
+                                  footprint=footprint,tolerance=tol,**kwargs)
 
         mask = mask.astype(bool)
         # Assign the mask to the island.
@@ -403,7 +413,7 @@ def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
         if verbose:
             # Calc the number of pixels in the island.
             Npix_island = img[mask].size
-
+            
             print(Npix_island,Npix_est[ind])
 
     return island_cube
