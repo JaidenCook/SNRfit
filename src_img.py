@@ -353,9 +353,6 @@ def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
     """
     from skimage.segmentation import flood as flood_mask
 
-    ## TODO
-    # Need to figure out how to group point that are associated to the same
-    # source. 
     if np.any(footparams):
         a,b,pa = footparams
         footprint = calc_footprint(a,b,pa)
@@ -370,9 +367,7 @@ def island_calc(img,peaks_vec,tol_fac=0.7,footparams=None,verbose=False,
         sigmas = FWHM2sig(a)*np.ones(Npeaks)
         Npix_est = np.ceil(2*np.pi*FWHM2sig(a)*FWHM2sig(b))*np.ones(Npeaks)
     elif peaks_vec.shape[-1] >= 3:
-        print('Oath')
         # If the peak vec has a third column assume it is the size column.
-        #sigmas = peaks_vec[:,-1]
         sigmas = peaks_vec[:,2]
         Npix_est = np.ceil(2*np.pi*sigmas**2) # Npixels estimate.
     else:
