@@ -168,7 +168,7 @@ def Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,sigma=None,
 # // This function needs to be refactored. 
 # Refactor this to remove the constants, replace with psfparams.
 def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=1,
-                  rms=None,perrcond=True,verbose=False):
+                  rms=None,perrcond=True,verbose=False,major=None):
     """
     Wrapper function for the Gaussian_2Dfit function, which fits the NGaussian2D 
     function using scipy.optimise.curve_fit(), which uses a non-linear least 
@@ -229,6 +229,10 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=1,
 
     # The guess parameter array.
     pguess = np.ones((N_gauss,N_params))*p0[None,:]
+    if verbose:
+        print("Initial guess parameters:")
+        print("[amp,x0,y0,sigx,sigy,pa]")
+        print(p0)
 
     # Defining the min and max peak x location limits.
     xlow = np.nanmin(xx)
@@ -239,8 +243,11 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=1,
     yhi = np.nanmax(yy)
 
     # Defining some absolute major axis.
-    major = np.sqrt((xhi-xlow)**2 + (yhi-ylow)**2)
-    Max_major = maj_frac*major # [pix]
+    if major:
+        Max_major = maj_frac*major # [pix]
+    else:
+        major = np.sqrt((xhi-xlow)**2 + (yhi-ylow)**2)
+        Max_major = maj_frac*major # [pix]
 
     # Assigning initial positions.
     pguess[:,1] = coords[:,1]
@@ -268,13 +275,22 @@ def SNR_Gauss_fit(xx,yy,data,coords,psfParams,maj_frac=1,
 
     # Specifying the lower fit bounds for each Gaussian.
     pbound_low = np.array([0.0,xlow,ylow,sigxPSF,sigyPSF,0.0]) 
-
+    pbound_up = np.array([np.inf,xhi,yhi,Max_major,Max_major,2*np.pi])
+    if verbose:
+        print("Lower limit on parameters:")
+        print(pbound_low)
+        print("Upper limit on parameters:")
+        print(pbound_up)
+        print(f"Size of data: {data.size}")
+        print(f"Number of Gaussians to fit: {N_gauss}")
+        print(f"Number of parameters to fit: {N_params*N_gauss}")
     # Expanding for each Gaussian component.
     pbound_low = np.ones((N_gauss,N_params))*pbound_low[None,:] 
-    pbound_up = np.array([np.inf,xhi,yhi,Max_major,Max_major,2*np.pi])
     pbound_up = np.ones((N_gauss,N_params))*pbound_up[None,:]
 
     # Getting the fit parameters, and their errors.
+    if verbose:
+        print("Fitting...")
     popt,pcov = Gaussian_2Dfit(xx,yy,data,pguess,func=NGaussian2D,
                                pbound_low=pbound_low,pbound_up=pbound_up,
                                sigma=sigma)
