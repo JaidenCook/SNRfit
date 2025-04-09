@@ -102,6 +102,8 @@ def calc_img_bkg_rms(image,mask_arr=None,Niter=5,sigma_thresh=2.5,
         Expected background value.
     rms : float
         Expected image root mean squared.
+    thresh_mask : np.ndarray, bool
+        If mask_cond = True, return the sigma threshold image mask.
     """
     # Output image gets altered otherwise.
     image = np.ones(image.shape)*image
@@ -657,9 +659,8 @@ def group_peaks(island_cube,peaks_vec):
     mask_list = []
 
     ##
-    # This should work for both island cases.
-    # Inefficient, but works. This loops through and finds the blended sources first, then 
-    # removes these.
+    # This should work for both island cases. Inefficient, but works. This loops 
+    # through and finds the blended sources first, then removes these.
     ##
     sourceID_vec = np.arange(Npeaks)
     for val in island_unique:
