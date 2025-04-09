@@ -221,8 +221,8 @@ def NGaussian2D(xdata_tuple, *params, fit=True):
         sigy_temp = params[i+4]
         theta_temp = params[i+5]
 
-        zz = zz + Gaussian2D(xdata_tuple, amp_temp, x0_temp, y0_temp, 
-                             sigx_temp, sigy_temp, theta_temp)
+        zz = zz + Gaussian2D(xdata_tuple,amp_temp,x0_temp,y0_temp, 
+                             sigx_temp,sigy_temp,theta_temp)
 
     if fit:
         return zz.ravel()
